@@ -158,22 +158,22 @@ function DiagnosticPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <MetricCard
                 label="Perplexity"
-                value={result?.perplexity_score ?? 0}
+                value={result?.perplexity_score ?? null}
                 caption="How unpredictable your word choices are."
               />
               <MetricCard
                 label="Burstiness"
-                value={result?.burstiness_score ?? 0}
+                value={result?.burstiness_score ?? null}
                 caption="Variation in sentence length and rhythm."
               />
               <MetricCard
                 label="AI detector"
-                value={result?.detector_score ?? 0}
+                value={result?.detector_score ?? null}
                 caption="RoBERTa classifier, chunked and confidence-weighted."
               />
               <MetricCard
                 label="Tone drift"
-                value={result?.tone_drift_score ?? 0}
+                value={result?.tone_drift_score ?? null}
                 caption="Paragraph-to-paragraph voice consistency."
               />
             </div>

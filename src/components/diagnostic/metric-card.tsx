@@ -5,14 +5,18 @@ export function MetricCard({
   emphasis,
 }: {
   label: string;
-  value: number;
+  value: number | null;
   caption: string;
   emphasis?: boolean;
 }) {
+  const empty = value === null;
+  const v = value ?? 0;
   const tone =
-    value < 50
+    empty
+      ? { text: "text-muted-foreground", bar: "bg-foreground/20", word: "—" }
+      : v < 50
       ? { text: "text-accent", bar: "bg-accent", word: "Weak" }
-      : value < 75
+      : v < 75
         ? { text: "text-foreground", bar: "bg-foreground/50", word: "Mixed" }
         : { text: "text-foreground", bar: "bg-foreground", word: "Strong" };
 
@@ -30,13 +34,13 @@ export function MetricCard({
         </p>
       </div>
       <p className={`mt-2 font-display leading-none ${tone.text} ${emphasis ? "text-6xl" : "text-5xl"}`}>
-        {Math.round(value)}
+        {empty ? "—" : Math.round(v)}
         <span className="ml-1 font-mono text-[12px] tracking-[0.1em] text-muted-foreground">
           /100
         </span>
       </p>
       <div className="mt-4 h-[3px] w-full bg-foreground/10">
-        <div className={`h-full ${tone.bar}`} style={{ width: `${Math.max(2, value)}%` }} />
+        <div className={`h-full ${tone.bar}`} style={{ width: `${empty ? 0 : Math.max(2, v)}%` }} />
       </div>
       <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">{caption}</p>
     </div>
