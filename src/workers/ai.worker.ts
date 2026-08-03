@@ -30,10 +30,11 @@ async function loadPipeline(task: any, model: string, report: boolean) {
   const progress_callback = report
     ? (x: any) => post({ type: "progress", data: x })
     : undefined;
+  const opts = { dtype: "q8", progress_callback } as any;
   try {
-    return await pipeline(task, model, { device: "webgpu", progress_callback } as any);
+    return await pipeline(task, model, { ...opts, device: "webgpu" });
   } catch {
-    return await pipeline(task, model, { device: "wasm", progress_callback } as any);
+    return await pipeline(task, model, { ...opts, device: "wasm" });
   }
 }
 
@@ -45,7 +46,7 @@ self.onmessage = async (event: MessageEvent) => {
       if (!aiDetector) {
         aiDetector = await loadPipeline(
           "text-classification",
-          "Xenova/roberta-base-openai-detector",
+          "onnx-community/roberta-base-openai-detector-ONNX",
           true,
         );
       }
@@ -61,7 +62,7 @@ self.onmessage = async (event: MessageEvent) => {
       post({
         type: "error",
         message:
-          "Your browser doesn't support local AI analysis. Try Chrome or Edge on desktop. (" +
+          "Couldn't load the local analysis models. Check your connection and try again, or use a recent desktop Chrome/Edge. (" +
           (err as Error).message +
           ")",
       });
