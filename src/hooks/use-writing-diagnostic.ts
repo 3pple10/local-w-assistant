@@ -15,6 +15,17 @@ export type Suggestion = {
   severity: "low" | "medium" | "high" | string;
 };
 
+export type ParagraphScore = {
+  index: number;
+  text: string;
+  start: number;
+  end: number;
+  words: number;
+  ai_probability: number;
+  human_score: number;
+  is_prose: boolean;
+};
+
 export type DiagnosticResult = {
   overall_score: number;
   classification: "likely_human" | "mixed" | "likely_ai" | string;
@@ -22,6 +33,10 @@ export type DiagnosticResult = {
   burstiness_score: number;
   detector_score: number;
   tone_drift_score: number;
+  author_consistency_score: number;
+  mixed_authorship: boolean;
+  detector_model?: string;
+  paragraphs: ParagraphScore[];
   ai_tells: { phrase: string; count: number }[];
   sentences: SentenceMetric[];
   suggestions: Suggestion[];
