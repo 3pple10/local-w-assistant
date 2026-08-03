@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StartHereRouteImport } from './routes/start-here'
 import { Route as LibraryRouteImport } from './routes/library'
-import { Route as DiagnosticRouteImport } from './routes/diagnostic'
 import { Route as DesignRouteImport } from './routes/design'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareShareTokenRouteImport } from './routes/share.$shareToken'
@@ -27,11 +26,6 @@ const StartHereRoute = StartHereRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DiagnosticRoute = DiagnosticRouteImport.update({
-  id: '/diagnostic',
-  path: '/diagnostic',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignRoute = DesignRouteImport.update({
@@ -68,7 +62,6 @@ const DesignHistoryDiffRoute = DesignHistoryDiffRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/design': typeof DesignRouteWithChildren
-  '/diagnostic': typeof DiagnosticRoute
   '/library': typeof LibraryRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
@@ -79,7 +72,6 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/design': typeof DesignRouteWithChildren
-  '/diagnostic': typeof DiagnosticRoute
   '/library': typeof LibraryRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
@@ -91,7 +83,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/design': typeof DesignRouteWithChildren
-  '/diagnostic': typeof DiagnosticRoute
   '/library': typeof LibraryRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
@@ -104,7 +95,6 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/design'
-    | '/diagnostic'
     | '/library'
     | '/start-here'
     | '/design/history'
@@ -115,7 +105,6 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/design'
-    | '/diagnostic'
     | '/library'
     | '/start-here'
     | '/design/history'
@@ -126,7 +115,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/design'
-    | '/diagnostic'
     | '/library'
     | '/start-here'
     | '/design/history'
@@ -138,7 +126,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DesignRoute: typeof DesignRouteWithChildren
-  DiagnosticRoute: typeof DiagnosticRoute
   LibraryRoute: typeof LibraryRoute
   StartHereRoute: typeof StartHereRoute
   KitKitIdRoute: typeof KitKitIdRoute
@@ -159,13 +146,6 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/diagnostic': {
-      id: '/diagnostic'
-      path: '/diagnostic'
-      fullPath: '/diagnostic'
-      preLoaderRoute: typeof DiagnosticRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design': {
@@ -239,7 +219,6 @@ const DesignRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DesignRoute: DesignRouteWithChildren,
-  DiagnosticRoute: DiagnosticRoute,
   LibraryRoute: LibraryRoute,
   StartHereRoute: StartHereRoute,
   KitKitIdRoute: KitKitIdRoute,
@@ -248,3 +227,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
