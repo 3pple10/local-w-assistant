@@ -1,11 +1,20 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { SiteHeader } from "@/components/site-header";
 import { MetricCard } from "@/components/diagnostic/metric-card";
 import { SentenceHeatmap } from "@/components/diagnostic/sentence-heatmap";
 import { SuggestionList } from "@/components/diagnostic/suggestion-list";
 import { ModelLoadingModal } from "@/components/diagnostic/model-loading-modal";
-import { useWritingDiagnostic } from "@/hooks/use-writing-diagnostic";
+import { ParagraphBreakdown } from "@/components/diagnostic/paragraph-breakdown";
+import { RunHistory } from "@/components/diagnostic/run-history";
+import { useWritingDiagnostic, type DiagnosticResult } from "@/hooks/use-writing-diagnostic";
+import {
+  clearRuns,
+  deleteRun,
+  loadRuns,
+  saveRun,
+  type SavedRun,
+} from "@/lib/diagnostic-history";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -14,13 +23,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Run a private, on-device diagnostic on your draft: perplexity, burstiness, AI detection, tone drift and AI-tell phrases. Nothing leaves your browser.",
+          "Run a private, on-device diagnostic on your draft: per-paragraph AI detection, perplexity, burstiness, author consistency and tone drift. Nothing leaves your browser.",
       },
       { property: "og:title", content: "Writing Diagnostic — Check Your Draft Before You Submit" },
       {
         property: "og:description",
         content:
-          "Five local analysis engines score your draft for machine-written patterns. Fully in-browser, no uploads.",
+          "Local analysis engines score every paragraph of your draft for machine-written patterns. Fully in-browser, no uploads.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -39,6 +48,10 @@ const CLASSIFICATION: Record<string, string> = {
 
 function DiagnosticPage() {
   const [text, setText] = useState("");
+  const [runs, setRuns] = useState<SavedRun[]>([]);
+  const [viewed, setViewed] = useState<{ id: string; result: DiagnosticResult } | null>(null);
+  const savedFor = useRef<DiagnosticResult | null>(null);
+
   const {
     status,
     error,
@@ -50,6 +63,20 @@ function DiagnosticPage() {
     load,
     analyze,
   } = useWritingDiagnostic();
+
+  useEffect(() => {
+    setRuns(loadRuns());
+  }, []);
+
+  useEffect(() => {
+    if (!result || savedFor.current === result) return;
+    savedFor.current = result;
+    setViewed(null);
+    setRuns(saveRun(text, result));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  const shown = viewed?.result ?? result;
 
   const chars = text.trim().length;
   const words = useMemo(() => (text.trim().match(/\S+/g) ?? []).length, [text]);
@@ -89,9 +116,9 @@ function DiagnosticPage() {
             Writing Diagnostic
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            Five analysis engines run entirely inside your browser — perplexity, burstiness,
-            a RoBERTa detector, tone drift and an AI-tell scanner. Your draft is never
-            uploaded anywhere.
+            Every paragraph is scored on its own by a modern AI-text detector, then combined
+            with perplexity, burstiness, author consistency and tone drift — all inside your
+            browser. Your draft is never uploaded anywhere.
           </p>
         </header>
 
@@ -135,6 +162,11 @@ function DiagnosticPage() {
                   {MIN_CHARS - chars} more characters needed
                 </p>
               )}
+              {viewed && (
+                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
+                  Viewing a saved run
+                </p>
+              )}
             </div>
           </section>
 
@@ -145,45 +177,76 @@ function DiagnosticPage() {
                 Overall
               </p>
               <p className="mt-2 font-display text-7xl leading-none">
-                {result ? result.overall_score : "—"}
+                {shown ? shown.overall_score : "—"}
                 <span className="ml-2 font-mono text-[12px] tracking-[0.1em] text-muted-foreground">
                   /100
                 </span>
               </p>
               <p className="mt-3 font-mono text-[12px] uppercase tracking-[0.15em]">
-                {result ? (CLASSIFICATION[result.classification] ?? result.classification) : "Awaiting analysis"}
+                {shown ? (CLASSIFICATION[shown.classification] ?? shown.classification) : "Awaiting analysis"}
               </p>
+              {shown?.mixed_authorship && (
+                <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.15em] text-accent">
+                  Mixed Authorship Detected
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <MetricCard
                 label="Perplexity"
-                value={result?.perplexity_score ?? null}
+                value={shown?.perplexity_score ?? null}
                 caption="How unpredictable your word choices are."
               />
               <MetricCard
                 label="Burstiness"
-                value={result?.burstiness_score ?? null}
+                value={shown?.burstiness_score ?? null}
                 caption="Variation in sentence length and rhythm."
               />
               <MetricCard
                 label="AI detector"
-                value={result?.detector_score ?? null}
-                caption="RoBERTa classifier, chunked and confidence-weighted."
+                value={shown?.detector_score ?? null}
+                caption="Modern detector, run per paragraph and length-weighted."
               />
               <MetricCard
                 label="Tone drift"
-                value={result?.tone_drift_score ?? null}
+                value={shown?.tone_drift_score ?? null}
                 caption="Paragraph-to-paragraph voice consistency."
               />
+              <MetricCard
+                label="Author consistency"
+                value={shown?.author_consistency_score ?? null}
+                caption="Spread between paragraph scores. Low means mixed authorship."
+              />
             </div>
+
+            <RunHistory
+              runs={runs}
+              activeId={viewed?.id ?? null}
+              onOpen={(run) => {
+                setText(run.text);
+                setViewed({ id: run.id, result: run.result });
+              }}
+              onDelete={(id) => {
+                setRuns(deleteRun(id));
+                if (viewed?.id === id) setViewed(null);
+              }}
+              onClear={() => {
+                setRuns(clearRuns());
+                setViewed(null);
+              }}
+            />
           </section>
         </div>
 
-        {result && (
+        {shown && (
           <div className="mt-6 space-y-6">
-            <SentenceHeatmap sentences={result.sentences} />
-            <SuggestionList suggestions={result.suggestions} />
+            <ParagraphBreakdown
+              paragraphs={shown.paragraphs ?? []}
+              mixedAuthorship={!!shown.mixed_authorship}
+            />
+            <SentenceHeatmap sentences={shown.sentences} />
+            <SuggestionList suggestions={shown.suggestions} />
           </div>
         )}
       </main>
