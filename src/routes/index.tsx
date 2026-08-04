@@ -6,7 +6,9 @@ import { SentenceHeatmap } from "@/components/diagnostic/sentence-heatmap";
 import { SuggestionList } from "@/components/diagnostic/suggestion-list";
 import { ModelLoadingModal } from "@/components/diagnostic/model-loading-modal";
 import { ParagraphBreakdown } from "@/components/diagnostic/paragraph-breakdown";
+import { SwarmActivity } from "@/components/diagnostic/swarm-activity";
 import { RunHistory } from "@/components/diagnostic/run-history";
+
 import { useWritingDiagnostic, type DiagnosticResult } from "@/hooks/use-writing-diagnostic";
 import {
   clearRuns,
@@ -58,6 +60,7 @@ function DiagnosticPage() {
     status,
     error,
     result,
+    loadingLayer,
     analysisProgress,
     downloadProgress,
     loadedMB,
@@ -65,6 +68,7 @@ function DiagnosticPage() {
     load,
     analyze,
   } = useWritingDiagnostic();
+
 
   useEffect(() => {
     setRuns(loadRuns());
