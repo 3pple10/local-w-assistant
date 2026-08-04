@@ -257,8 +257,10 @@ function DiagnosticPage() {
               paragraphs={shown.paragraphs ?? []}
               mixedAuthorship={!!shown.mixed_authorship}
             />
+            <SwarmActivity layers={shown.swarm ?? []} overrides={shown.overrides ?? []} />
             <SentenceHeatmap sentences={shown.sentences} />
             <SuggestionList suggestions={shown.suggestions} />
+
           </div>
         )}
       </main>
