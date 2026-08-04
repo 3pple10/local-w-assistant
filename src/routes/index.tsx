@@ -41,10 +41,12 @@ export const Route = createFileRoute("/")({
 const MIN_CHARS = 500;
 
 const CLASSIFICATION: Record<string, string> = {
-  likely_human: "Reads human",
-  mixed: "Mixed signals",
-  likely_ai: "Reads machine-written",
+  likely_human: "Likely Human",
+  mixed: "Mixed",
+  likely_ai: "Likely AI",
+  review_needed: "Review Needed",
 };
+
 
 function DiagnosticPage() {
   const [text, setText] = useState("");
