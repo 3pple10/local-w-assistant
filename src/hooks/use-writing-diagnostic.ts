@@ -97,6 +97,9 @@ export function useWritingDiagnostic() {
             },
           }));
         }
+      } else if (type === "layer") {
+        if (data?.state === "loading") setLoadingLayer({ name: data.name, size: data.size });
+        else setLoadingLayer(null);
       } else if (type === "ready") {
         setStatus("ready");
       } else if (type === "analysis_progress") {
@@ -104,8 +107,10 @@ export function useWritingDiagnostic() {
       } else if (type === "result") {
         setResult(data);
         setAnalysisProgress(1);
+        setLoadingLayer(null);
         setStatus("ready");
       } else if (type === "error") {
+
         setError(message ?? "Unknown error");
         setStatus("error");
       }
