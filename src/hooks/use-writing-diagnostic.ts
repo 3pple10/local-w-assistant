@@ -26,9 +26,17 @@ export type ParagraphScore = {
   is_prose: boolean;
 };
 
+export type LayerEvent = {
+  layer: string;
+  name: string;
+  size: string;
+  fired: boolean;
+  detail: string;
+};
+
 export type DiagnosticResult = {
   overall_score: number;
-  classification: "likely_human" | "mixed" | "likely_ai" | string;
+  classification: "likely_human" | "mixed" | "likely_ai" | "review_needed" | string;
   perplexity_score: number;
   burstiness_score: number;
   detector_score: number;
@@ -40,7 +48,11 @@ export type DiagnosticResult = {
   ai_tells: { phrase: string; count: number }[];
   sentences: SentenceMetric[];
   suggestions: Suggestion[];
+  swarm?: LayerEvent[];
+  overrides?: string[];
+  skipped_sections?: number;
 };
+
 
 type Status = "idle" | "loading" | "ready" | "analyzing" | "error";
 
