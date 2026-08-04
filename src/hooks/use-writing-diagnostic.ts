@@ -24,7 +24,10 @@ export type ParagraphScore = {
   ai_probability: number;
   human_score: number;
   is_prose: boolean;
+  kind?: string;
+  surface_hits?: number;
 };
+
 
 export type LayerEvent = {
   layer: string;
