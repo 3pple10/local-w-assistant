@@ -72,7 +72,10 @@ function DiagnosticPage() {
 
   useEffect(() => {
     setRuns(loadRuns());
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   useEffect(() => {
     if (!result || savedFor.current === result) return;
