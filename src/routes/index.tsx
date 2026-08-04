@@ -6,7 +6,9 @@ import { SentenceHeatmap } from "@/components/diagnostic/sentence-heatmap";
 import { SuggestionList } from "@/components/diagnostic/suggestion-list";
 import { ModelLoadingModal } from "@/components/diagnostic/model-loading-modal";
 import { ParagraphBreakdown } from "@/components/diagnostic/paragraph-breakdown";
+import { SwarmActivity } from "@/components/diagnostic/swarm-activity";
 import { RunHistory } from "@/components/diagnostic/run-history";
+
 import { useWritingDiagnostic, type DiagnosticResult } from "@/hooks/use-writing-diagnostic";
 import {
   clearRuns,
@@ -41,10 +43,12 @@ export const Route = createFileRoute("/")({
 const MIN_CHARS = 500;
 
 const CLASSIFICATION: Record<string, string> = {
-  likely_human: "Reads human",
-  mixed: "Mixed signals",
-  likely_ai: "Reads machine-written",
+  likely_human: "Likely Human",
+  mixed: "Mixed",
+  likely_ai: "Likely AI",
+  review_needed: "Review Needed",
 };
+
 
 function DiagnosticPage() {
   const [text, setText] = useState("");
@@ -56,6 +60,7 @@ function DiagnosticPage() {
     status,
     error,
     result,
+    loadingLayer,
     analysisProgress,
     downloadProgress,
     loadedMB,
@@ -64,9 +69,13 @@ function DiagnosticPage() {
     analyze,
   } = useWritingDiagnostic();
 
+
   useEffect(() => {
     setRuns(loadRuns());
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
 
   useEffect(() => {
     if (!result || savedFor.current === result) return;
@@ -90,9 +99,9 @@ function DiagnosticPage() {
 
   const buttonLabel =
     status === "idle" || status === "error"
-      ? "Load analyzer"
+      ? "Start engine"
       : status === "loading"
-        ? "Loading models…"
+        ? "Starting…"
         : busy
           ? `Analyzing… ${Math.round(analysisProgress * 100)}%`
           : "Analyze draft";
@@ -101,7 +110,9 @@ function DiagnosticPage() {
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <ModelLoadingModal
-        open={status === "loading"}
+        open={!!loadingLayer}
+        layerName={loadingLayer?.name}
+        layerSize={loadingLayer?.size}
         progress={downloadProgress}
         loadedMB={loadedMB}
         totalMB={totalMB}
@@ -110,17 +121,21 @@ function DiagnosticPage() {
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <header className="max-w-2xl">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Pre-submission
+            Swarm engine · L0–L7
           </p>
           <h1 className="mt-2 font-display text-5xl leading-[1.05] sm:text-6xl">
             Writing Diagnostic
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            Every paragraph is scored on its own by a modern AI-text detector, then combined
-            with perplexity, burstiness, author consistency and tone drift — all inside your
-            browser. Your draft is never uploaded anywhere.
+            Seven lightweight specialists sanitize, scan, profile and fingerprint your draft
+            paragraph by paragraph, and a 23MB semantic master is loaded only when they
+            disagree. Everything runs and caches inside your browser — nothing is uploaded.
+          </p>
+          <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            Browser analysis is approximate — use for drafting guidance only.
           </p>
         </header>
+
 
         {error && (
           <p
@@ -245,8 +260,10 @@ function DiagnosticPage() {
               paragraphs={shown.paragraphs ?? []}
               mixedAuthorship={!!shown.mixed_authorship}
             />
+            <SwarmActivity layers={shown.swarm ?? []} overrides={shown.overrides ?? []} />
             <SentenceHeatmap sentences={shown.sentences} />
             <SuggestionList suggestions={shown.suggestions} />
+
           </div>
         )}
       </main>

@@ -24,11 +24,22 @@ export type ParagraphScore = {
   ai_probability: number;
   human_score: number;
   is_prose: boolean;
+  kind?: string;
+  surface_hits?: number;
+};
+
+
+export type LayerEvent = {
+  layer: string;
+  name: string;
+  size: string;
+  fired: boolean;
+  detail: string;
 };
 
 export type DiagnosticResult = {
   overall_score: number;
-  classification: "likely_human" | "mixed" | "likely_ai" | string;
+  classification: "likely_human" | "mixed" | "likely_ai" | "review_needed" | string;
   perplexity_score: number;
   burstiness_score: number;
   detector_score: number;
@@ -40,7 +51,11 @@ export type DiagnosticResult = {
   ai_tells: { phrase: string; count: number }[];
   sentences: SentenceMetric[];
   suggestions: Suggestion[];
+  swarm?: LayerEvent[];
+  overrides?: string[];
+  skipped_sections?: number;
 };
+
 
 type Status = "idle" | "loading" | "ready" | "analyzing" | "error";
 
@@ -53,6 +68,8 @@ export function useWritingDiagnostic() {
   const [files, setFiles] = useState<Record<string, FileProgress>>({});
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
+  const [loadingLayer, setLoadingLayer] = useState<{ name: string; size: string } | null>(null);
+
 
   useEffect(() => {
     return () => {
@@ -80,6 +97,9 @@ export function useWritingDiagnostic() {
             },
           }));
         }
+      } else if (type === "layer") {
+        if (data?.state === "loading") setLoadingLayer({ name: data.name, size: data.size });
+        else setLoadingLayer(null);
       } else if (type === "ready") {
         setStatus("ready");
       } else if (type === "analysis_progress") {
@@ -87,8 +107,10 @@ export function useWritingDiagnostic() {
       } else if (type === "result") {
         setResult(data);
         setAnalysisProgress(1);
+        setLoadingLayer(null);
         setStatus("ready");
       } else if (type === "error") {
+
         setError(message ?? "Unknown error");
         setStatus("error");
       }
@@ -128,7 +150,9 @@ export function useWritingDiagnostic() {
     status,
     error,
     result,
+    loadingLayer,
     analysisProgress,
+
     downloadProgress,
     loadedMB: loadedBytes / 1024 / 1024,
     totalMB: totalBytes / 1024 / 1024,
