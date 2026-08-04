@@ -68,6 +68,8 @@ export function useWritingDiagnostic() {
   const [files, setFiles] = useState<Record<string, FileProgress>>({});
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [result, setResult] = useState<DiagnosticResult | null>(null);
+  const [loadingLayer, setLoadingLayer] = useState<{ name: string; size: string } | null>(null);
+
 
   useEffect(() => {
     return () => {
