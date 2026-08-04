@@ -96,9 +96,9 @@ function DiagnosticPage() {
 
   const buttonLabel =
     status === "idle" || status === "error"
-      ? "Load analyzer"
+      ? "Start engine"
       : status === "loading"
-        ? "Loading models…"
+        ? "Starting…"
         : busy
           ? `Analyzing… ${Math.round(analysisProgress * 100)}%`
           : "Analyze draft";
@@ -107,7 +107,9 @@ function DiagnosticPage() {
     <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <ModelLoadingModal
-        open={status === "loading"}
+        open={!!loadingLayer}
+        layerName={loadingLayer?.name}
+        layerSize={loadingLayer?.size}
         progress={downloadProgress}
         loadedMB={loadedMB}
         totalMB={totalMB}
@@ -116,17 +118,21 @@ function DiagnosticPage() {
       <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
         <header className="max-w-2xl">
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Pre-submission
+            Swarm engine · L0–L7
           </p>
           <h1 className="mt-2 font-display text-5xl leading-[1.05] sm:text-6xl">
             Writing Diagnostic
           </h1>
           <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            Every paragraph is scored on its own by a modern AI-text detector, then combined
-            with perplexity, burstiness, author consistency and tone drift — all inside your
-            browser. Your draft is never uploaded anywhere.
+            Seven lightweight specialists sanitize, scan, profile and fingerprint your draft
+            paragraph by paragraph, and a 23MB semantic master is loaded only when they
+            disagree. Everything runs and caches inside your browser — nothing is uploaded.
+          </p>
+          <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            Browser analysis is approximate — use for drafting guidance only.
           </p>
         </header>
+
 
         {error && (
           <p
