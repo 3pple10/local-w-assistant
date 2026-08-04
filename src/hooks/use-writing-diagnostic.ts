@@ -150,7 +150,9 @@ export function useWritingDiagnostic() {
     status,
     error,
     result,
+    loadingLayer,
     analysisProgress,
+
     downloadProgress,
     loadedMB: loadedBytes / 1024 / 1024,
     totalMB: totalBytes / 1024 / 1024,
