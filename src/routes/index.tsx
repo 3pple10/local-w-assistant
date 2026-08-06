@@ -255,6 +255,10 @@ function DiagnosticPage() {
           </section>
         </div>
 
+        <div className="mt-6">
+          <LlmAssist text={text} />
+        </div>
+
         {shown && (
           <div className="mt-6 space-y-6">
             <ParagraphBreakdown
