@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StartHereRouteImport } from './routes/start-here'
+import { Route as ModelsRouteImport } from './routes/models'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as DesignRouteImport } from './routes/design'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -22,6 +23,11 @@ import { Route as DesignHistoryDiffRouteImport } from './routes/design.history.d
 const StartHereRoute = StartHereRouteImport.update({
   id: '/start-here',
   path: '/start-here',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ModelsRoute = ModelsRouteImport.update({
+  id: '/models',
+  path: '/models',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LibraryRoute = LibraryRouteImport.update({
@@ -70,6 +76,7 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/library': typeof LibraryRoute
+  '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
   '/kit/$kitId': typeof KitKitIdRoute
@@ -81,6 +88,7 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/library': typeof LibraryRoute
+  '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
   '/kit/$kitId': typeof KitKitIdRoute
@@ -93,6 +101,7 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/library': typeof LibraryRoute
+  '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
   '/design/history': typeof DesignHistoryRouteWithChildren
   '/kit/$kitId': typeof KitKitIdRoute
@@ -106,6 +115,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/library'
+    | '/models'
     | '/start-here'
     | '/design/history'
     | '/kit/$kitId'
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/library'
+    | '/models'
     | '/start-here'
     | '/design/history'
     | '/kit/$kitId'
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/library'
+    | '/models'
     | '/start-here'
     | '/design/history'
     | '/kit/$kitId'
@@ -140,6 +152,7 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   DesignRoute: typeof DesignRouteWithChildren
   LibraryRoute: typeof LibraryRoute
+  ModelsRoute: typeof ModelsRoute
   StartHereRoute: typeof StartHereRoute
   KitKitIdRoute: typeof KitKitIdRoute
   ShareShareTokenRoute: typeof ShareShareTokenRoute
@@ -152,6 +165,13 @@ declare module '@tanstack/react-router' {
       path: '/start-here'
       fullPath: '/start-here'
       preLoaderRoute: typeof StartHereRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/models': {
+      id: '/models'
+      path: '/models'
+      fullPath: '/models'
+      preLoaderRoute: typeof ModelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/library': {
@@ -241,6 +261,7 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   DesignRoute: DesignRouteWithChildren,
   LibraryRoute: LibraryRoute,
+  ModelsRoute: ModelsRoute,
   StartHereRoute: StartHereRoute,
   KitKitIdRoute: KitKitIdRoute,
   ShareShareTokenRoute: ShareShareTokenRoute,
