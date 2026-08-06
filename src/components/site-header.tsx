@@ -18,8 +18,16 @@ export function SiteHeader() {
           <ScanLine className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden />
           Writing Diagnostic
         </Link>
-        <nav className="flex shrink-0 items-center gap-4 sm:gap-8">
-          <span className={navLinkClass}>Runs on-device</span>
+        <nav className="flex shrink-0 items-center gap-4 sm:gap-6">
+          <Link to="/" className={navLinkClass}>
+            Diagnostic
+          </Link>
+          <Link to="/chat" className={navLinkClass}>
+            Chat
+          </Link>
+          <Link to="/models" className={navLinkClass}>
+            Models
+          </Link>
         </nav>
       </div>
     </header>
