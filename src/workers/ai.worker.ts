@@ -711,14 +711,18 @@ async function analyzeDocument(input: string) {
   const perplexity_score = l5.score;
   const burstiness_score = l6.score;
   const tone_drift_score = Math.round(toneDrift);
+  const human_signal_score = l8.human_signal;
+  const ai_pressure_score = l8.ai_pressure;
 
   let overall_score = Math.round(
-    perplexity_score * 0.2 +
-      burstiness_score * 0.2 +
-      detector_score * 0.25 +
-      tone_drift_score * 0.15 +
-      author_consistency_score * 0.2,
+    perplexity_score * 0.17 +
+      burstiness_score * 0.17 +
+      detector_score * 0.22 +
+      tone_drift_score * 0.12 +
+      author_consistency_score * 0.17 +
+      human_signal_score * 0.15,
   );
+
 
   let classification =
     overall_score > 70 ? "likely_human" : overall_score > 45 ? "mixed" : "likely_ai";
