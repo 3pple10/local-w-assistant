@@ -101,6 +101,20 @@ export function LlmAssist({ text }: { text: string }) {
           <button
             type="button"
             disabled={busy || tooShort}
+            onClick={() => void run("human")}
+            className="inline-flex items-center gap-2 rounded-full px-5 py-2 font-mono text-[12px] uppercase tracking-[0.1em] transition-colors hover:bg-foreground/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ border: "1px solid #0A0A0A" }}
+          >
+            {busy && mode === "human" ? (
+              <Loader2 className="h-3 w-3 animate-spin" strokeWidth={1.5} aria-hidden />
+            ) : (
+              <UserCheck className="h-3 w-3" strokeWidth={1.5} aria-hidden />
+            )}
+            Human evidence
+          </button>
+          <button
+            type="button"
+            disabled={busy || tooShort}
             onClick={() => void run("humanise")}
             className="inline-flex items-center gap-2 rounded-full px-5 py-2 font-mono text-[12px] uppercase tracking-[0.1em] transition-colors hover:bg-foreground/[0.05] disabled:cursor-not-allowed disabled:opacity-40"
             style={{ border: "1px solid #0A0A0A" }}
@@ -112,6 +126,7 @@ export function LlmAssist({ text }: { text: string }) {
             )}
             Humanise draft
           </button>
+
           {busy && (
             <button
               type="button"
