@@ -10,11 +10,16 @@
  * L5 N-gram Entropy       [0MB, in-document Markov model]
  * L6 Burstiness           [0MB, pure math]
  * L7 Ensemble Fusion      [0MB, deterministic arbitration]
+ * L8 Human Signal         [0MB, positive human-evidence scanner]
  *
  * No single transformer classifier. The master is loaded lazily and cached by
  * transformers.js in browser storage; every layer degrades to deterministic
  * rules rather than crashing.
  */
+
+import { humanReport, sentenceHumanScore } from "@/lib/human-signals";
+
+
 
 /** Models the app no longer uses — evicted from user caches on init. */
 const RETIRED_MODELS = [
