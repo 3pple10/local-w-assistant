@@ -830,6 +830,13 @@ async function analyzeDocument(input: string) {
         ". Rewrite these in your own words.",
       severity: "medium",
     });
+  if (human_signal_score < 45)
+    suggestions.push({
+      type: "human_signal",
+      message:
+        "Little positive human evidence: no contractions, asides, first-person judgement or concrete specifics. Passing the AI checks is not the same as sounding like you — add something only you would write.",
+      severity: human_signal_score < 25 ? "high" : "medium",
+    });
 
   return {
     overall_score,
@@ -839,8 +846,11 @@ async function analyzeDocument(input: string) {
     detector_score,
     tone_drift_score,
     author_consistency_score,
+    human_signal_score,
+    ai_pressure_score,
+    human_markers: l8.markers.map((m) => ({ label: m.label, count: m.count })),
     mixed_authorship,
-    detector_model: "swarm (L0–L7)" + (masterFired ? " + MiniLM master" : ""),
+    detector_model: "swarm (L0–L8)" + (masterFired ? " + MiniLM master" : ""),
     paragraphs,
     ai_tells: docSurface.hits.map((h) => ({ phrase: h.label, count: h.count })),
     sentences: sentenceMetrics.slice(0, 60),
@@ -849,4 +859,5 @@ async function analyzeDocument(input: string) {
     overrides,
     skipped_sections: sections.filter((s) => s.kind !== "prose").length,
   };
+
 }
