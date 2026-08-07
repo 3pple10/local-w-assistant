@@ -22,6 +22,9 @@ export function SiteHeader() {
           <Link to="/" className={navLinkClass}>
             Diagnostic
           </Link>
+          <Link to="/humanise" className={navLinkClass}>
+            Humanise
+          </Link>
           <Link to="/chat" className={navLinkClass}>
             Chat
           </Link>

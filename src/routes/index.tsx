@@ -9,6 +9,8 @@ import { ParagraphBreakdown } from "@/components/diagnostic/paragraph-breakdown"
 import { SwarmActivity } from "@/components/diagnostic/swarm-activity";
 import { RunHistory } from "@/components/diagnostic/run-history";
 import { LlmAssist } from "@/components/diagnostic/llm-assist";
+import { DualGauges } from "@/components/diagnostic/dual-gauges";
+
 
 import { useWritingDiagnostic, type DiagnosticResult } from "@/hooks/use-writing-diagnostic";
 import {
