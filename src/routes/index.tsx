@@ -208,7 +208,14 @@ function DiagnosticPage() {
               )}
             </div>
 
+            <DualGauges
+              ai={shown ? (shown.ai_pressure_score ?? 100 - shown.detector_score) : null}
+              human={shown ? (shown.human_signal_score ?? null) : null}
+              markers={shown?.human_markers}
+            />
+
             <div className="grid gap-4 sm:grid-cols-2">
+
               <MetricCard
                 label="Perplexity"
                 value={shown?.perplexity_score ?? null}
