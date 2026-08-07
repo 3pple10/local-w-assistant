@@ -660,6 +660,24 @@ async function analyzeDocument(input: string) {
   const author_consistency_score = scored.length < 2 ? 100 : Math.round(clamp(100 - sd * 2.4));
   const mixed_authorship = scored.length >= 2 && sd > 25;
 
+  /* ---- L8 human signal (positive evidence, independent of the AI layers) ---- */
+  const l8 = humanReport(text);
+  const l8Paragraphs = analysed.map((s) => humanReport(s.text));
+  const humanRich = l8Paragraphs.filter((r) => r.human_signal >= 60).length;
+  const humanBare = l8Paragraphs.filter((r) => r.human_signal < 30).length;
+  swarm.push({
+    layer: "L8",
+    name: "Human Signal Scanner",
+    size: "0MB",
+    fired: true,
+    detail:
+      `Human evidence ${l8.human_signal}/100 vs machine pressure ${l8.ai_pressure}/100 · ` +
+      (l8.markers.length
+        ? `markers: ${l8.markers.slice(0, 4).map((m) => `${m.label} (${m.count})`).join(", ")}`
+        : "no positive human markers found") +
+      ` · ${humanRich} rich / ${humanBare} bare paragraph(s)`,
+  });
+
   /* ---- sentence level ---- */
   let cursor = 0;
   const paragraphFor = (pos: number) =>
@@ -675,6 +693,7 @@ async function analyzeDocument(input: string) {
     const para = paragraphFor(Math.max(0, start));
     const base = para ? para.ai_probability : 1 - detector_score / 100;
     const localProb = clamp(base * 100 + (flags.includes("ai_tell") ? 12 : 0)) / 100;
+    const human = sentenceHumanScore(sent);
     return {
       text: sent.trim(),
       start: Math.max(0, start),
@@ -682,8 +701,11 @@ async function analyzeDocument(input: string) {
       ai_probability: Math.round(localProb * 100) / 100,
       perplexity: Math.round((l5.perSentence[i] ?? 6) * 10) / 10,
       flags,
+      human_score: human.score,
+      human_markers: human.categories,
     };
   });
+
 
   /* ---- L7 fusion ---- */
   const perplexity_score = l5.score;
