@@ -7,7 +7,10 @@ export type SentenceMetric = {
   ai_probability: number;
   perplexity: number;
   flags: string[];
+  human_score?: number;
+  human_markers?: string[];
 };
+
 
 export type Suggestion = {
   type: string;
