@@ -756,7 +756,19 @@ async function analyzeDocument(input: string) {
   if (uncertain && masterFired) {
     overrides.push("Swarm uncertain (40–60) — master arbitration decided the final classification.");
   }
+  if (human_signal_score < 25 && classification === "likely_human") {
+    classification = "review_needed";
+    overrides.push(
+      `L8 override: almost no positive human evidence (${human_signal_score}/100) despite passing AI checks — Review Needed.`,
+    );
+  }
+  if (human_signal_score >= 70 && classification === "mixed" && !capped && !mixed_authorship) {
+    overrides.push(
+      `L8: strong human evidence (${human_signal_score}/100) counterweights the Mixed reading — treat flags as guidance.`,
+    );
+  }
   if (!overrides.length) overrides.push("No overrides fired — weighted swarm vote stands.");
+
 
   swarm.push({
     layer: "L7",
