@@ -10,11 +10,16 @@
  * L5 N-gram Entropy       [0MB, in-document Markov model]
  * L6 Burstiness           [0MB, pure math]
  * L7 Ensemble Fusion      [0MB, deterministic arbitration]
+ * L8 Human Signal         [0MB, positive human-evidence scanner]
  *
  * No single transformer classifier. The master is loaded lazily and cached by
  * transformers.js in browser storage; every layer degrades to deterministic
  * rules rather than crashing.
  */
+
+import { humanReport, sentenceHumanScore } from "@/lib/human-signals";
+
+
 
 /** Models the app no longer uses — evicted from user caches on init. */
 const RETIRED_MODELS = [
@@ -655,6 +660,24 @@ async function analyzeDocument(input: string) {
   const author_consistency_score = scored.length < 2 ? 100 : Math.round(clamp(100 - sd * 2.4));
   const mixed_authorship = scored.length >= 2 && sd > 25;
 
+  /* ---- L8 human signal (positive evidence, independent of the AI layers) ---- */
+  const l8 = humanReport(text);
+  const l8Paragraphs = analysed.map((s) => humanReport(s.text));
+  const humanRich = l8Paragraphs.filter((r) => r.human_signal >= 60).length;
+  const humanBare = l8Paragraphs.filter((r) => r.human_signal < 30).length;
+  swarm.push({
+    layer: "L8",
+    name: "Human Signal Scanner",
+    size: "0MB",
+    fired: true,
+    detail:
+      `Human evidence ${l8.human_signal}/100 vs machine pressure ${l8.ai_pressure}/100 · ` +
+      (l8.markers.length
+        ? `markers: ${l8.markers.slice(0, 4).map((m) => `${m.label} (${m.count})`).join(", ")}`
+        : "no positive human markers found") +
+      ` · ${humanRich} rich / ${humanBare} bare paragraph(s)`,
+  });
+
   /* ---- sentence level ---- */
   let cursor = 0;
   const paragraphFor = (pos: number) =>
@@ -670,6 +693,7 @@ async function analyzeDocument(input: string) {
     const para = paragraphFor(Math.max(0, start));
     const base = para ? para.ai_probability : 1 - detector_score / 100;
     const localProb = clamp(base * 100 + (flags.includes("ai_tell") ? 12 : 0)) / 100;
+    const human = sentenceHumanScore(sent);
     return {
       text: sent.trim(),
       start: Math.max(0, start),
@@ -677,21 +701,28 @@ async function analyzeDocument(input: string) {
       ai_probability: Math.round(localProb * 100) / 100,
       perplexity: Math.round((l5.perSentence[i] ?? 6) * 10) / 10,
       flags,
+      human_score: human.score,
+      human_markers: human.categories,
     };
   });
+
 
   /* ---- L7 fusion ---- */
   const perplexity_score = l5.score;
   const burstiness_score = l6.score;
   const tone_drift_score = Math.round(toneDrift);
+  const human_signal_score = l8.human_signal;
+  const ai_pressure_score = l8.ai_pressure;
 
   let overall_score = Math.round(
-    perplexity_score * 0.2 +
-      burstiness_score * 0.2 +
-      detector_score * 0.25 +
-      tone_drift_score * 0.15 +
-      author_consistency_score * 0.2,
+    perplexity_score * 0.17 +
+      burstiness_score * 0.17 +
+      detector_score * 0.22 +
+      tone_drift_score * 0.12 +
+      author_consistency_score * 0.17 +
+      human_signal_score * 0.15,
   );
+
 
   let classification =
     overall_score > 70 ? "likely_human" : overall_score > 45 ? "mixed" : "likely_ai";
@@ -725,7 +756,19 @@ async function analyzeDocument(input: string) {
   if (uncertain && masterFired) {
     overrides.push("Swarm uncertain (40–60) — master arbitration decided the final classification.");
   }
+  if (human_signal_score < 25 && classification === "likely_human") {
+    classification = "review_needed";
+    overrides.push(
+      `L8 override: almost no positive human evidence (${human_signal_score}/100) despite passing AI checks — Review Needed.`,
+    );
+  }
+  if (human_signal_score >= 70 && classification === "mixed" && !capped && !mixed_authorship) {
+    overrides.push(
+      `L8: strong human evidence (${human_signal_score}/100) counterweights the Mixed reading — treat flags as guidance.`,
+    );
+  }
   if (!overrides.length) overrides.push("No overrides fired — weighted swarm vote stands.");
+
 
   swarm.push({
     layer: "L7",
@@ -787,6 +830,13 @@ async function analyzeDocument(input: string) {
         ". Rewrite these in your own words.",
       severity: "medium",
     });
+  if (human_signal_score < 45)
+    suggestions.push({
+      type: "human_signal",
+      message:
+        "Little positive human evidence: no contractions, asides, first-person judgement or concrete specifics. Passing the AI checks is not the same as sounding like you — add something only you would write.",
+      severity: human_signal_score < 25 ? "high" : "medium",
+    });
 
   return {
     overall_score,
@@ -796,8 +846,11 @@ async function analyzeDocument(input: string) {
     detector_score,
     tone_drift_score,
     author_consistency_score,
+    human_signal_score,
+    ai_pressure_score,
+    human_markers: l8.markers.map((m) => ({ label: m.label, count: m.count })),
     mixed_authorship,
-    detector_model: "swarm (L0–L7)" + (masterFired ? " + MiniLM master" : ""),
+    detector_model: "swarm (L0–L8)" + (masterFired ? " + MiniLM master" : ""),
     paragraphs,
     ai_tells: docSurface.hits.map((h) => ({ phrase: h.label, count: h.count })),
     sentences: sentenceMetrics.slice(0, 60),
@@ -806,4 +859,5 @@ async function analyzeDocument(input: string) {
     overrides,
     skipped_sections: sections.filter((s) => s.kind !== "prose").length,
   };
+
 }

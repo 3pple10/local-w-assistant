@@ -7,7 +7,10 @@ export type SentenceMetric = {
   ai_probability: number;
   perplexity: number;
   flags: string[];
+  human_score?: number;
+  human_markers?: string[];
 };
+
 
 export type Suggestion = {
   type: string;
@@ -45,7 +48,11 @@ export type DiagnosticResult = {
   detector_score: number;
   tone_drift_score: number;
   author_consistency_score: number;
+  human_signal_score?: number;
+  ai_pressure_score?: number;
+  human_markers?: { label: string; count: number }[];
   mixed_authorship: boolean;
+
   detector_model?: string;
   paragraphs: ParagraphScore[];
   ai_tells: { phrase: string; count: number }[];
