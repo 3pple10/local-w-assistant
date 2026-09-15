@@ -13,6 +13,7 @@ import { Route as StartHereRouteImport } from './routes/start-here'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as LibraryRouteImport } from './routes/library'
 import { Route as HumaniseRouteImport } from './routes/humanise'
+import { Route as FetcherRouteImport } from './routes/fetcher'
 import { Route as DesignRouteImport } from './routes/design'
 import { Route as ChatRouteImport } from './routes/chat'
 import { Route as IndexRouteImport } from './routes/index'
@@ -39,6 +40,11 @@ const LibraryRoute = LibraryRouteImport.update({
 const HumaniseRoute = HumaniseRouteImport.update({
   id: '/humanise',
   path: '/humanise',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FetcherRoute = FetcherRouteImport.update({
+  id: '/fetcher',
+  path: '/fetcher',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DesignRoute = DesignRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
+  '/fetcher': typeof FetcherRoute
   '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
+  '/fetcher': typeof FetcherRoute
   '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
+  '/fetcher': typeof FetcherRoute
   '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/design'
+    | '/fetcher'
     | '/humanise'
     | '/library'
     | '/models'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/design'
+    | '/fetcher'
     | '/humanise'
     | '/library'
     | '/models'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/chat'
     | '/design'
+    | '/fetcher'
     | '/humanise'
     | '/library'
     | '/models'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChatRoute: typeof ChatRoute
   DesignRoute: typeof DesignRouteWithChildren
+  FetcherRoute: typeof FetcherRoute
   HumaniseRoute: typeof HumaniseRoute
   LibraryRoute: typeof LibraryRoute
   ModelsRoute: typeof ModelsRoute
@@ -199,6 +212,13 @@ declare module '@tanstack/react-router' {
       path: '/humanise'
       fullPath: '/humanise'
       preLoaderRoute: typeof HumaniseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/fetcher': {
+      id: '/fetcher'
+      path: '/fetcher'
+      fullPath: '/fetcher'
+      preLoaderRoute: typeof FetcherRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/design': {
@@ -280,6 +300,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChatRoute: ChatRoute,
   DesignRoute: DesignRouteWithChildren,
+  FetcherRoute: FetcherRoute,
   HumaniseRoute: HumaniseRoute,
   LibraryRoute: LibraryRoute,
   ModelsRoute: ModelsRoute,
@@ -290,3 +311,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

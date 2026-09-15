@@ -28,6 +28,9 @@ export function SiteHeader() {
           <Link to="/chat" className={navLinkClass}>
             Chat
           </Link>
+          <Link to="/fetcher" className={navLinkClass}>
+            Fetcher
+          </Link>
           <Link to="/models" className={navLinkClass}>
             Models
           </Link>
