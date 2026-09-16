@@ -3,6 +3,7 @@
   "private": true,
   "sideEffects": false,
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
@@ -11,7 +12,9 @@
     "lint": "eslint . && node scripts/check-await-build-brand-pdf.mjs",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "desktop": "electron .",
+    "desktop:package": "electron-packager . \"Writing Diagnostic\" --out=electron-release --overwrite --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/e2e\""
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",
