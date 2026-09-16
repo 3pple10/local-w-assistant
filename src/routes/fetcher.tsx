@@ -428,6 +428,29 @@ function FetcherPage() {
                   </div>
                   <div>
                     <Label className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                      Browser cookies
+                    </Label>
+                    <Select
+                      value={state.cookiesFromBrowser}
+                      onValueChange={(v) => set("cookiesFromBrowser", v)}
+                    >
+                      <SelectTrigger className="mt-2 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COOKIE_SOURCES.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>
+                            {c.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="mt-2 text-[12px] text-muted-foreground">
+                      Uses the signed-in session from that browser for private or restricted posts.
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                       File naming
                     </Label>
                     <Input
