@@ -237,6 +237,7 @@ export function previewCommand(p: DownloadPayload): string {
   flags.push(p.isPlaylist ? "--yes-playlist" : "--no-playlist");
   const name = p.customFilename || "%(title)s - %(uploader)s.%(ext)s";
   const dir = p.outputDirectory ? `${p.outputDirectory.replace(/\/$/, "")}/` : "";
+  if (p.cookiesFromBrowser) flags.push(`--cookies-from-browser ${p.cookiesFromBrowser}`);
   flags.push(`-o "${dir}${name}"`);
   return `yt-dlp ${flags.join(" ")} ${p.urls.map((u) => `"${u}"`).join(" ")}`;
 }
