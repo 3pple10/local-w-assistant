@@ -25,9 +25,13 @@ import { Download, Square, Terminal, Trash2, AlertTriangle } from "lucide-react"
 import {
   AUDIO_CONTAINERS,
   CONTAINER_FORMATS,
+  COOKIE_SOURCES,
   QUALITY_PRESETS,
   buildPayload,
+  detectPlatform,
+  parseUrls,
   previewCommand,
+  sanitizeUrl,
   type DownloadPayload,
   type FormState,
 } from "@/lib/cli-payload";
