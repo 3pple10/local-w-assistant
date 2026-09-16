@@ -307,6 +307,25 @@ function FetcherPage() {
               />
             )}
 
+            {cleaned.length > 0 && (
+              <ul className="mt-3 space-y-1.5">
+                {cleaned.slice(0, 4).map((c) => (
+                  <li key={c.original} className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{c.platform}</Badge>
+                    {c.changed && <Badge variant="outline">Clean URL</Badge>}
+                    <span className="break-all font-mono text-[11px] text-muted-foreground">
+                      {c.clean}
+                    </span>
+                  </li>
+                ))}
+                {cleaned.length > 4 && (
+                  <li className="font-mono text-[11px] text-muted-foreground">
+                    +{cleaned.length - 4} more link(s)
+                  </li>
+                )}
+              </ul>
+            )}
+
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div>
                 <Label className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
