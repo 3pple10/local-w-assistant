@@ -138,6 +138,15 @@ function FetcherPage() {
     return payload ? previewCommand(payload) : null;
   }, [state]);
 
+  const cleaned = useMemo(
+    () =>
+      parseUrls(state.urlsRaw).map((original) => {
+        const clean = sanitizeUrl(original);
+        return { original, clean, changed: clean !== original, platform: detectPlatform(clean) };
+      }),
+    [state.urlsRaw],
+  );
+
   const finish = useCallback(
     (message: string) => {
       sourceRef.current?.close();
