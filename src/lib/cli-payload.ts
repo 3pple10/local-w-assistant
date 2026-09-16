@@ -176,6 +176,7 @@ export interface FormState {
   isPlaylist: boolean;
   outputDirectory: string;
   customFilename: string;
+  cookiesFromBrowser: string;
 }
 
 export interface BuildResult {
@@ -185,7 +186,7 @@ export interface BuildResult {
 
 export function buildPayload(state: FormState): BuildResult {
   const errors: string[] = [];
-  const urls = parseUrls(state.urlsRaw);
+  const urls = parseUrls(state.urlsRaw).map(sanitizeUrl);
   if (urls.length === 0) errors.push("Add at least one video link.");
   if (urls.length > 100) errors.push("Batch is limited to 100 links at a time.");
   urls.forEach((u) => {
@@ -196,6 +197,9 @@ export function buildPayload(state: FormState): BuildResult {
   if (fileErr) errors.push(fileErr);
   const dirErr = validateDirectory(state.outputDirectory);
   if (dirErr) errors.push(dirErr);
+  const cookies = state.cookiesFromBrowser || "none";
+  if (!COOKIE_SOURCES.some((c) => c.value === cookies))
+    errors.push("Unknown browser for cookies.");
   if (errors.length) return { errors };
 
   const audioOnly = state.audioOnly || state.quality === "audio";
@@ -210,6 +214,7 @@ export function buildPayload(state: FormState): BuildResult {
       isPlaylist: state.isPlaylist,
       outputDirectory: state.outputDirectory.trim(),
       customFilename: state.customFilename.trim(),
+      cookiesFromBrowser: cookies === "none" ? "" : cookies,
     },
   };
 }
