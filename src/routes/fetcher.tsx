@@ -91,6 +91,7 @@ function FetcherPage() {
     isPlaylist: false,
     outputDirectory: "",
     customFilename: "",
+    cookiesFromBrowser: "none",
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [lines, setLines] = useState<LogLine[]>([]);
