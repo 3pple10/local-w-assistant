@@ -1,5 +1,7 @@
 {
-  "name": "tanstack_start_ts",
+  "name": "writing-diagnostic",
+  "productName": "Writing Diagnostic",
+  "version": "1.0.0",
   "private": true,
   "sideEffects": false,
   "type": "module",
@@ -14,7 +16,7 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "desktop": "electron .",
-    "desktop:package": "electron-packager . \"Writing Diagnostic\" --out=electron-release --overwrite --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/e2e\""
+    "desktop:package": "vite build && electron-packager . \"Writing Diagnostic\" --platform=linux --arch=x64 --out=electron-release --overwrite --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/e2e\""
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

@@ -21,7 +21,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { Download, Square, Terminal, Trash2, AlertTriangle } from "lucide-react";
+import { Download, FolderOpen, Square, Terminal, Trash2, AlertTriangle } from "lucide-react";
 import {
   AUDIO_CONTAINERS,
   CONTAINER_FORMATS,
@@ -60,6 +60,15 @@ export const Route = createFileRoute("/fetcher")({
 
 const DEFAULT_ENDPOINT = "http://localhost:3000";
 const MAX_LINES = 600;
+
+interface DesktopBridge {
+  isDesktop: boolean;
+  pickDirectory: () => Promise<string | null>;
+}
+
+function desktopBridge(): DesktopBridge | undefined {
+  return (window as Window & { desktop?: DesktopBridge }).desktop;
+}
 
 type LogKind = "out" | "err" | "sys";
 interface LogLine {
@@ -100,6 +109,8 @@ function FetcherPage() {
   const [speed, setSpeed] = useState<string | null>(null);
   const [eta, setEta] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [serviceReady, setServiceReady] = useState<boolean | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   const consoleRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -123,6 +134,15 @@ function FetcherPage() {
   useEffect(() => {
     consoleRef.current?.scrollTo({ top: consoleRef.current.scrollHeight });
   }, [lines]);
+
+  useEffect(() => {
+    setIsDesktop(Boolean(desktopBridge()?.isDesktop));
+    const controller = new AbortController();
+    fetch(`${DEFAULT_ENDPOINT}/api/health`, { signal: controller.signal })
+      .then((response) => setServiceReady(response.ok))
+      .catch(() => setServiceReady(false));
+    return () => controller.abort();
+  }, []);
 
   useEffect(
     () => () => {
@@ -464,12 +484,29 @@ function FetcherPage() {
                     <Label className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
                       Save to
                     </Label>
-                    <Input
-                      value={state.outputDirectory}
-                      onChange={(e) => set("outputDirectory", e.target.value)}
-                      placeholder="/Users/you/Downloads"
-                      className="mt-2 font-mono text-[13px]"
-                    />
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={state.outputDirectory}
+                        onChange={(e) => set("outputDirectory", e.target.value)}
+                        placeholder="Use Downloads or choose a folder"
+                        className="font-mono text-[13px]"
+                      />
+                      {isDesktop && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          title="Choose save folder"
+                          aria-label="Choose save folder"
+                          onClick={async () => {
+                            const directory = await desktopBridge()?.pickDirectory();
+                            if (directory) set("outputDirectory", directory);
+                          }}
+                        >
+                          <FolderOpen className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <Label className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
@@ -481,6 +518,13 @@ function FetcherPage() {
                       placeholder={DEFAULT_ENDPOINT}
                       className="mt-2 font-mono text-[13px]"
                     />
+                    <p className="mt-2 font-mono text-[11px] text-muted-foreground">
+                      {serviceReady === null
+                        ? "Checking local downloader…"
+                        : serviceReady
+                          ? "Local downloader connected"
+                          : "Local downloader offline — open this page in the desktop app"}
+                    </p>
                   </div>
                 </AccordionContent>
               </AccordionItem>

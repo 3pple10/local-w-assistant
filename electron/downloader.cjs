@@ -18,6 +18,12 @@ const ALLOWED_FORMAT = new Set(["mp4", "mkv", "webm", "mp3", "flac"]);
 const ALLOWED_COOKIES = new Set(["chrome", "firefox", "brave", "edge", "safari"]);
 const UNSAFE = /[\s;`$|<>\\"'\n\r\t]/;
 
+function executable(name) {
+  const suffix = process.platform === "win32" ? ".exe" : "";
+  const bundled = path.join(__dirname, "bin", `${name}${suffix}`);
+  return require("fs").existsSync(bundled) ? bundled : name;
+}
+
 function buildArgs(p) {
   const args = [];
   const audioOnly = Boolean(p.audioOnly) || p.quality === "audio";
@@ -116,7 +122,7 @@ function createServer() {
       const job = { listeners: new Set(), buffer: [], done: false, child: null };
       jobs.set(id, job);
 
-      const child = spawn("yt-dlp", args, { shell: false });
+      const child = spawn(executable("yt-dlp"), args, { shell: false });
       job.child = child;
       child.stdout.on("data", (d) =>
         String(d)
@@ -198,8 +204,14 @@ function createServer() {
 
 function start(port = 3000) {
   const server = createServer();
-  server.listen(port, "127.0.0.1");
-  return server;
+  return new Promise((resolve, reject) => {
+    const onError = (error) => reject(error);
+    server.once("error", onError);
+    server.listen(port, "127.0.0.1", () => {
+      server.off("error", onError);
+      resolve(server);
+    });
+  });
 }
 
 function killAll() {
