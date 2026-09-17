@@ -11,21 +11,21 @@ npm run dev            # in one terminal (the app itself)
 npm run desktop        # in another (the window)
 ```
 
-`APP_URL` overrides which address the window loads (defaults to
-`http://localhost:8080`). Point it at the published site to run the window
-against the hosted build.
+`APP_URL` overrides the development address (defaults to `http://localhost:8080`).
+Packaged releases load the included production app and do not need a web server.
 
 ## Package it
 
 ```bash
-npm run desktop:package          # current platform
+npm run desktop:package
 ```
 
 Output lands in `electron-release/`.
 
 ## Requirements
 
-- `yt-dlp` on PATH (and `ffmpeg` for merging/audio conversion).
+- The package prefers `electron/bin/yt-dlp` and otherwise uses `yt-dlp` on PATH.
+- `ffmpeg` is required for merging and audio conversion.
 - Browser-cookie downloads read the signed-in session of the browser you pick.
 
 ## Security notes
