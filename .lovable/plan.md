@@ -1,41 +1,22 @@
-## Plan
+# Finish and verify the Electron Fetcher
 
-Add a small readiness state to the homepage extraction panel so the sandbox does not accept extraction until the client and server-function layer are actually ready.
+## Goal
+Deliver a desktop build that opens the existing app, starts its private local downloader automatically, and lets Fetcher communicate with it without a separate terminal command.
 
-## What will change
+## Changes
+- Make the Electron entry work in both development and packaged builds, with one application instance and a clean downloader shutdown.
+- Package the app’s production output correctly instead of relying on the development website address.
+- Add a native folder chooser to the existing “Save to” control when running inside Electron.
+- Strengthen local-service startup and error reporting, including port conflicts and missing `yt-dlp`/`ffmpeg`.
+- Keep the chained model architecture out of scope until you provide that plan.
 
-1. **Gate the extract control**
-   - Replace the active extract button with `INITIALIZING · PLEASE WAIT` until readiness is confirmed.
-   - Keep the URL/file inputs visible, but disable submit while initializing.
-   - If the user clicks/presses submit early, show a direct message instead of trying a server call.
-
-2. **Use a real readiness probe**
-   - Call the existing lightweight `warmServer` server function from `kits.functions.ts` after hydration.
-   - Mark the panel ready only after that call succeeds.
-   - Add a short retry loop for sandbox cold starts rather than failing immediately.
-
-3. **Make readiness visible and honest**
-   - Show a compact status line under the input while initializing.
-   - Remove any implication that extraction is ready before the server function round-trip succeeds.
-
-4. **Decouple readiness from recent kits**
-   - Recent kits showing up is currently just an accidental signal that client-side code has hydrated/cache loaded.
-   - The extraction panel should own its own readiness check instead of relying on the recent kits section.
-
-5. **Verify in preview**
-   - Load `/` in the Lovable sandbox.
-   - Confirm the button starts as initializing.
-   - Confirm it switches to extract after the warm server call.
-   - Submit a URL immediately after it becomes ready and verify the create + extract server requests run from the sandbox.
+## Verification
+- Start the Electron window and confirm the Fetcher page renders.
+- Confirm the bundled service health check responds from inside the desktop session.
+- Submit a real sanitized media URL, follow its live SSE output, and confirm cancellation/exit behavior.
+- Create and inspect a downloadable Linux desktop archive.
 
 ## Technical details
-
-- Update `src/components/ingestion-panel.tsx` only unless verification exposes a separate import/cache issue.
-- Import `warmServer` and call it through `useServerFn` inside `useEffect`.
-- Track readiness as `"initializing" | "ready" | "error"`.
-- Disable the submit button when `busy || readiness !== "ready"`.
-- Keep current behavior of staying on the homepage during extraction and navigating only after success.
-
-## Honest limitation
-
-This will not make Lovable sandbox infrastructure instantly ready. It will prevent users from submitting during the fragile startup window, which is the reliable fix for the preview-only behavior you’re seeing.
+- Electron retains `contextIsolation: true`, `nodeIntegration: false`, and an explicit preload bridge.
+- `yt-dlp` is invoked with an argument array and `shell: false`; URL, format, quality, path, and cookie inputs remain validated.
+- The package will use Electron Packager and include only the files needed at runtime.
