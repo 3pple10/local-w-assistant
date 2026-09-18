@@ -73,10 +73,19 @@ async function getFfmpeg() {
   console.log("Downloading ffmpeg…");
   await download(url, archive);
 
-  const extract = url.endsWith(".zip")
-    ? spawnSync("unzip", ["-q", archive, "-d", staging], { stdio: "inherit" })
-    : spawnSync("tar", ["xf", archive, "-C", staging], { stdio: "inherit" });
-  if (extract.status !== 0) throw new Error("Could not unpack the ffmpeg archive");
+  const run = (cmd, args) => spawnSync(cmd, args, { stdio: "inherit" }).status === 0;
+  let unpacked = url.endsWith(".zip")
+    ? run("unzip", ["-q", archive, "-d", staging]) ||
+      run("nix", ["run", "nixpkgs#unzip", "--", "-q", archive, "-d", staging])
+    : run("tar", ["xf", archive, "-C", staging]);
+  if (!unpacked && !url.endsWith(".zip")) {
+    // Some minimal environments ship tar without xz support.
+    unpacked =
+      (run("xz", ["-d", archive]) ||
+        run("nix", ["run", "nixpkgs#xz", "--", "-d", archive])) &&
+      run("tar", ["xf", archive.replace(/\.xz$/, ""), "-C", staging]);
+  }
+  if (!unpacked) throw new Error("Could not unpack the ffmpeg archive");
 
   const found = spawnSync("sh", ["-c", `find ${JSON.stringify(staging)} -type f -name ${name}`], {
     encoding: "utf8",
