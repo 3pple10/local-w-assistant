@@ -13,7 +13,7 @@ if (!app.requestSingleInstanceLock()) app.quit();
 
 function loadApplication(window) {
   if (app.isPackaged) {
-    return window.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+    return window.loadFile(path.join(__dirname, "..", "dist", "client", "index.html"));
   }
   return window.loadURL(DEV_URL);
 }
