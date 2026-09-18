@@ -16,7 +16,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "desktop": "electron .",
-    "desktop:package": "vite build && electron-packager . \"Writing Diagnostic\" --platform=linux --arch=x64 --out=electron-release --overwrite --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/e2e\""
+    "desktop:package": "node scripts/fetch-helpers.mjs linux && vite build && electron-packager . \"Writing Diagnostic\" --platform=linux --arch=x64 --out=electron-release --overwrite --ignore=\"^/src\" --ignore=\"^/public\" --ignore=\"^/electron-release\" --ignore=\"^/e2e\" --ignore=\"^/scripts\"",
+    "desktop:helpers": "node scripts/fetch-helpers.mjs"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

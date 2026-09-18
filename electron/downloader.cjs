@@ -33,6 +33,8 @@ function bundledFfmpegDir() {
 
 function buildArgs(p) {
   const args = [];
+  const ffmpegDir = bundledFfmpegDir();
+  if (ffmpegDir) args.push("--ffmpeg-location", ffmpegDir);
   const audioOnly = Boolean(p.audioOnly) || p.quality === "audio";
   const format = ALLOWED_FORMAT.has(p.format) ? p.format : audioOnly ? "mp3" : "mp4";
 
