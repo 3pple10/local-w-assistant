@@ -4,18 +4,21 @@
 const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
 const path = require("path");
 const downloader = require("./downloader.cjs");
+const appServer = require("./app-server.cjs");
 
 const DEV_URL = process.env.APP_URL || "http://localhost:8080";
 let server = null;
+let site = null;
 let win = null;
 
 if (!app.requestSingleInstanceLock()) app.quit();
 
-function loadApplication(window) {
-  if (app.isPackaged) {
-    return window.loadFile(path.join(__dirname, "..", "dist", "client", "index.html"));
+async function loadApplication(window) {
+  if (!app.isPackaged) return window.loadURL(DEV_URL);
+  if (!site) {
+    site = await appServer.start({ distDir: path.join(__dirname, "..", "dist"), port: 4173 });
   }
-  return window.loadURL(DEV_URL);
+  return window.loadURL(site.url);
 }
 
 function createWindow() {
