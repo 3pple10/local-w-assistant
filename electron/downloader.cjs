@@ -24,6 +24,13 @@ function executable(name) {
   return require("fs").existsSync(bundled) ? bundled : name;
 }
 
+// Bundled ffmpeg (if shipped) so merging and audio conversion need no install.
+function bundledFfmpegDir() {
+  const suffix = process.platform === "win32" ? ".exe" : "";
+  const file = path.join(__dirname, "bin", `ffmpeg${suffix}`);
+  return require("fs").existsSync(file) ? path.dirname(file) : null;
+}
+
 function buildArgs(p) {
   const args = [];
   const audioOnly = Boolean(p.audioOnly) || p.quality === "audio";
