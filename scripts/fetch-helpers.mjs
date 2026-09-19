@@ -14,6 +14,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const BIN = path.join(here, "..", "electron", "bin");
 
 const platform = process.argv[2] || process.platform;
+const arch = process.argv[3] || process.arch;
 
 const YT_DLP = {
   linux: "yt-dlp_linux",
@@ -21,11 +22,18 @@ const YT_DLP = {
   win32: "yt-dlp.exe",
 };
 
+// macOS gets a single-file static build matched to the chip; the other
+// platforms take the archived gpl builds.
+const FFMPEG_DIRECT = {
+  "darwin-arm64":
+    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-darwin-arm64",
+  "darwin-x64":
+    "https://github.com/eugeneware/ffmpeg-static/releases/download/b6.0/ffmpeg-darwin-x64",
+};
+
 const FFMPEG_ARCHIVE = {
   linux:
     "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz",
-  darwin:
-    "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-macos64-gpl.tar.xz",
   win32:
     "https://github.com/yt-dlp/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip",
 };
@@ -64,8 +72,17 @@ async function getFfmpeg() {
   const name = platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
   const target = path.join(BIN, name);
   if (await exists(target)) return console.log("ffmpeg already present");
+
+  const direct = FFMPEG_DIRECT[`${platform}-${arch}`];
+  if (direct) {
+    console.log(`Downloading ffmpeg (${platform}-${arch})…`);
+    await download(direct, target);
+    await chmod(target, 0o755);
+    return console.log("ffmpeg ready");
+  }
+
   const url = FFMPEG_ARCHIVE[platform];
-  if (!url) throw new Error(`No ffmpeg build for ${platform}`);
+  if (!url) throw new Error(`No ffmpeg build for ${platform}-${arch}`);
   const staging = path.join(BIN, ".ffmpeg-tmp");
   await rm(staging, { recursive: true, force: true });
   await mkdir(staging, { recursive: true });
