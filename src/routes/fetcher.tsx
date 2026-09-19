@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Download, FolderOpen, Square, Terminal, Trash2, AlertTriangle } from "lucide-react";
+import desktopBundle from "@/assets/desktop-bundle.tar.gz.asset.json";
 import {
   AUDIO_CONTAINERS,
   CONTAINER_FORMATS,
@@ -304,6 +305,35 @@ function FetcherPage() {
             this page — it only tells your local service what to do.
           </p>
         </header>
+
+        {!isDesktop && (
+          <section className="mt-8 rounded-2xl border border-[color:var(--border-subtle)] bg-[color:var(--surface-raised)] p-6">
+            <div className="flex flex-wrap items-start justify-between gap-6">
+              <div className="max-w-xl">
+                <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                  Ready-made bundle
+                </p>
+                <h2 className="mt-2 font-display text-2xl">Want the desktop version instead?</h2>
+                <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
+                  The desktop bundle already contains the video fetcher and media converter, and
+                  starts its own local service when you open it — no terminal, no installs. Use this
+                  page as-is if your local service is already running.
+                </p>
+              </div>
+              <div className="flex flex-col items-start gap-2">
+                <Button asChild>
+                  <a href={desktopBundle.url} download>
+                    <Download className="mr-2 size-4" />
+                    Download bundle (Linux, 228 MB)
+                  </a>
+                </Button>
+                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+                  Unpack, then open “Writing Diagnostic”
+                </p>
+              </div>
+            </div>
+          </section>
+        )}
 
         <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           {/* ---- controls ---- */}
