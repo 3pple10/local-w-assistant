@@ -23,6 +23,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Download, FolderOpen, Square, Terminal, Trash2, AlertTriangle } from "lucide-react";
 import desktopBundle from "@/assets/desktop-bundle.tar.gz.asset.json";
+import macArm from "@/assets/desktop-bundle-mac-arm64.zip.asset.json";
+import macIntel from "@/assets/desktop-bundle-mac-x64.zip.asset.json";
 import {
   AUDIO_CONTAINERS,
   CONTAINER_FORMATS,
@@ -321,14 +323,29 @@ function FetcherPage() {
                 </p>
               </div>
               <div className="flex flex-col items-start gap-2">
-                <Button asChild>
-                  <a href={desktopBundle.url} download>
-                    <Download className="mr-2 size-4" />
-                    Download bundle (Linux, 228 MB)
-                  </a>
-                </Button>
-                <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-                  Unpack, then open “Writing Diagnostic”
+                <div className="flex flex-wrap gap-2">
+                  <Button asChild>
+                    <a href={macArm.url} download>
+                      <Download className="mr-2 size-4" />
+                      Mac · Apple Silicon (185 MB)
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a href={macIntel.url} download>
+                      <Download className="mr-2 size-4" />
+                      Mac · Intel (195 MB)
+                    </a>
+                  </Button>
+                  <Button asChild variant="outline">
+                    <a href={desktopBundle.url} download>
+                      <Download className="mr-2 size-4" />
+                      Linux (228 MB)
+                    </a>
+                  </Button>
+                </div>
+                <p className="max-w-sm font-mono text-[11px] leading-relaxed uppercase tracking-[0.14em] text-muted-foreground">
+                  Unpack, then open “Writing Diagnostic”. On a Mac the first open needs
+                  right-click → Open, since the app is not signed by Apple yet.
                 </p>
               </div>
             </div>
