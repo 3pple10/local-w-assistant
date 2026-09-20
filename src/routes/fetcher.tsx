@@ -81,6 +81,14 @@ interface LogLine {
 }
 
 function parseProgress(line: string) {
+  const structured = line.match(/\[progress\]\s*([\d.]+)%?\s*\|\s*([^|]*)\|\s*(.*)$/i);
+  if (structured) {
+    return {
+      percent: Math.min(100, Number(structured[1])),
+      speed: structured[2].trim() || null,
+      eta: structured[3].trim() || null,
+    };
+  }
   const pct = line.match(/(\d{1,3}(?:\.\d)?)%/);
   const speed = line.match(/at\s+([\d.]+\s*[KMG]i?B\/s)/i);
   const eta = line.match(/ETA\s+([\d:]+)/i);
@@ -197,7 +205,21 @@ function FetcherPage() {
         }
       };
       es.addEventListener("stderr", (ev) => push(String((ev as MessageEvent).data), "err"));
-      es.addEventListener("done", () => finish("[process finished]"));
+      es.addEventListener("done", (event) => {
+        let code = 1;
+        try {
+          const result = JSON.parse((event as MessageEvent).data) as { code?: number };
+          code = result.code ?? 1;
+        } catch {
+          code = 1;
+        }
+        if (code === 0) {
+          setPercent(100);
+          finish("[download completed]");
+        } else {
+          finish(`[download failed — exit ${code}] Check the error above; no file was completed.`);
+        }
+      });
       es.onerror = () => finish("[stream closed — is the local service still running?]");
     },
     [endpoint, finish, push],
@@ -634,7 +656,7 @@ function FetcherPage() {
             <div className="mt-4">
               <Progress value={percent} />
               <p className="mt-2 text-right font-mono text-[11px] text-muted-foreground">
-                {percent.toFixed(0)}%
+                {running && percent === 0 ? "Preparing media…" : `${percent.toFixed(0)}%`}
               </p>
             </div>
 

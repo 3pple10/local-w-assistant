@@ -56,7 +56,9 @@ app.on("second-instance", () => {
 
 app.whenReady().then(async () => {
   try {
-    server = await downloader.start(3000);
+    server = await downloader.start(3000, {
+      runtimeDir: path.join(app.getPath("userData"), "helpers"),
+    });
   } catch (error) {
     dialog.showErrorBox(
       "Local downloader could not start",
