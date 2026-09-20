@@ -6,6 +6,7 @@
 // yt-dlp is spawned WITHOUT a shell, so arguments can never be re-interpreted.
 
 const http = require("http");
+const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { spawn } = require("child_process");
@@ -17,11 +18,56 @@ const ALLOWED_QUALITY = new Set(["best", "2160p", "1080p", "720p", "audio"]);
 const ALLOWED_FORMAT = new Set(["mp4", "mkv", "webm", "mp3", "flac"]);
 const ALLOWED_COOKIES = new Set(["chrome", "firefox", "brave", "edge", "safari"]);
 const UNSAFE = /[\s;`$|<>\\"'\n\r\t]/;
+const UPDATE_TIMEOUT_MS = 45_000;
+let managedExecutable = null;
+let updatePromise = null;
+let updateStatus = "bundled";
 
 function executable(name) {
+  if (name === "yt-dlp" && managedExecutable) return managedExecutable;
   const suffix = process.platform === "win32" ? ".exe" : "";
   const bundled = path.join(__dirname, "bin", `${name}${suffix}`);
-  return require("fs").existsSync(bundled) ? bundled : name;
+  return fs.existsSync(bundled) ? bundled : name;
+}
+
+function runCapture(command, args, timeout = UPDATE_TIMEOUT_MS) {
+  return new Promise((resolve) => {
+    const child = spawn(command, args, { shell: false });
+    let output = "";
+    const timer = setTimeout(() => child.kill("SIGTERM"), timeout);
+    child.stdout.on("data", (chunk) => (output += String(chunk)));
+    child.stderr.on("data", (chunk) => (output += String(chunk)));
+    child.on("error", (error) => {
+      clearTimeout(timer);
+      resolve({ code: -1, output: error.message });
+    });
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: code ?? -1, output });
+    });
+  });
+}
+
+async function prepareExecutable(runtimeDir) {
+  const bundled = executable("yt-dlp");
+  if (!runtimeDir || bundled === "yt-dlp") return;
+  const suffix = process.platform === "win32" ? ".exe" : "";
+  fs.mkdirSync(runtimeDir, { recursive: true });
+  const runtime = path.join(runtimeDir, `yt-dlp${suffix}`);
+  if (!fs.existsSync(runtime)) {
+    fs.copyFileSync(bundled, runtime);
+    if (process.platform !== "win32") fs.chmodSync(runtime, 0o755);
+  }
+  managedExecutable = runtime;
+  updateStatus = "checking";
+  updatePromise = runCapture(runtime, ["--update-to", "nightly"])
+    .then((result) => {
+      updateStatus = result.code === 0 ? "ready" : "update-failed";
+      return result;
+    })
+    .catch(() => {
+      updateStatus = "update-failed";
+    });
 }
 
 // Bundled ffmpeg (if shipped) so merging and audio conversion need no install.
@@ -52,7 +98,18 @@ function buildArgs(p) {
     if (p.embedSubtitles) args.push("--write-auto-subs", "--embed-subs");
   }
 
-  args.push(p.isPlaylist ? "--yes-playlist" : "--no-playlist", "--newline", "--progress");
+  args.push(
+    p.isPlaylist ? "--yes-playlist" : "--no-playlist",
+    "--newline",
+    "--progress",
+    "--no-colors",
+    "--progress-template",
+    "download:[progress] %(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s",
+    "--retries",
+    "3",
+    "--fragment-retries",
+    "3",
+  );
 
   if (p.cookiesFromBrowser && ALLOWED_COOKIES.has(p.cookiesFromBrowser)) {
     args.push("--cookies-from-browser", p.cookiesFromBrowser);
@@ -80,11 +137,79 @@ function buildArgs(p) {
   return args;
 }
 
+function withoutBrowserCookies(args) {
+  const copy = [...args];
+  const index = copy.indexOf("--cookies-from-browser");
+  if (index >= 0) copy.splice(index, 2);
+  return copy;
+}
+
 function emit(job, line, stream) {
   const frame = `data: ${JSON.stringify({ line, stream })}\n\n`;
   job.buffer.push(frame);
   if (job.buffer.length > 800) job.buffer.shift();
   for (const res of job.listeners) res.write(frame);
+}
+
+function spawnAttempt(job, args, onClose) {
+  const child = spawn(executable("yt-dlp"), args, { shell: false });
+  job.child = child;
+  job.output = "";
+  const buffers = { stdout: "", stderr: "" };
+  const flush = (stream, chunk, final = false) => {
+    buffers[stream] += chunk;
+    const parts = buffers[stream].split(/\r?\n|\r/);
+    buffers[stream] = final ? "" : (parts.pop() ?? "");
+    if (final && buffers[stream]) parts.push(buffers[stream]);
+    for (const line of parts.filter(Boolean)) {
+      job.output += `${line}\n`;
+      emit(job, line, stream);
+    }
+  };
+  child.stdout.on("data", (data) => flush("stdout", String(data)));
+  child.stderr.on("data", (data) => flush("stderr", String(data)));
+  child.on("error", (error) => {
+    emit(
+      job,
+      error.code === "ENOENT"
+        ? "The bundled downloader is missing. Download a fresh desktop bundle."
+        : `Failed to start the downloader: ${error.message}`,
+      "stderr",
+    );
+  });
+  child.on("close", (code) => {
+    flush("stdout", "", true);
+    flush("stderr", "", true);
+    onClose(code ?? 1);
+  });
+}
+
+function complete(job, code) {
+  job.done = true;
+  job.exitCode = code;
+  const result = { code, status: code === 0 ? "completed" : "failed" };
+  const frame = `event: done\ndata: ${JSON.stringify(result)}\n\n`;
+  for (const response of job.listeners) {
+    response.write(frame);
+    response.end();
+  }
+  job.listeners.clear();
+  setTimeout(() => jobs.delete(job.id), 60_000);
+}
+
+function runJob(job, args, canRetryWithoutCookies) {
+  spawnAttempt(job, args, (code) => {
+    const cookieFailure = /page needs to be reloaded/i.test(job.output);
+    if (code !== 0 && canRetryWithoutCookies && cookieFailure) {
+      emit(
+        job,
+        "[recovery] YouTube rejected the browser session. Retrying this public video without browser cookies…",
+        "stderr",
+      );
+      return runJob(job, withoutBrowserCookies(args), false);
+    }
+    complete(job, code);
+  });
 }
 
 function readBody(req) {
@@ -127,44 +252,11 @@ function createServer() {
         res.writeHead(400, { ...CORS, "Content-Type": "text/plain" });
         return res.end(err.message);
       }
+      if (updatePromise) await updatePromise;
       const id = randomUUID();
-      const job = { listeners: new Set(), buffer: [], done: false, child: null };
+      const job = { id, listeners: new Set(), buffer: [], done: false, child: null, output: "" };
       jobs.set(id, job);
-
-      const child = spawn(executable("yt-dlp"), args, { shell: false });
-      job.child = child;
-      child.stdout.on("data", (d) =>
-        String(d)
-          .split(/\r?\n/)
-          .filter(Boolean)
-          .forEach((l) => emit(job, l, "stdout")),
-      );
-      child.stderr.on("data", (d) =>
-        String(d)
-          .split(/\r?\n/)
-          .filter(Boolean)
-          .forEach((l) => emit(job, l, "stderr")),
-      );
-      child.on("error", (err) => {
-        emit(
-          job,
-          err.code === "ENOENT"
-            ? "yt-dlp is not installed or not on PATH."
-            : `Failed to start yt-dlp: ${err.message}`,
-          "stderr",
-        );
-      });
-      child.on("close", (code) => {
-        job.done = true;
-        emit(job, `[exit ${code}]`, "stdout");
-        const frame = "event: done\ndata: {}\n\n";
-        for (const r of job.listeners) {
-          r.write(frame);
-          r.end();
-        }
-        job.listeners.clear();
-        setTimeout(() => jobs.delete(id), 60_000);
-      });
+      runJob(job, args, args.includes("--cookies-from-browser"));
 
       res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
       return res.end(JSON.stringify({ jobId: id }));
@@ -185,7 +277,9 @@ function createServer() {
       }
       job.buffer.forEach((f) => res.write(f));
       if (job.done) {
-        res.write("event: done\ndata: {}\n\n");
+        res.write(
+          `event: done\ndata: ${JSON.stringify({ code: job.exitCode, status: job.exitCode === 0 ? "completed" : "failed" })}\n\n`,
+        );
         return res.end();
       }
       job.listeners.add(res);
@@ -203,7 +297,7 @@ function createServer() {
 
     if (url.pathname === "/api/health") {
       res.writeHead(200, { ...CORS, "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ ok: true }));
+      return res.end(JSON.stringify({ ok: true, updater: updateStatus }));
     }
 
     res.writeHead(404, CORS);
@@ -211,7 +305,10 @@ function createServer() {
   });
 }
 
-function start(port = 3000) {
+function start(port = 3000, options = {}) {
+  prepareExecutable(options.runtimeDir).catch(() => {
+    updateStatus = "update-failed";
+  });
   const server = createServer();
   return new Promise((resolve, reject) => {
     const onError = (error) => reject(error);
