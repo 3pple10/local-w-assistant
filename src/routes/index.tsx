@@ -1,286 +1,392 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { AlertTriangle, ArrowRight, File, Folder, Lock, Play, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
-import { MetricCard } from "@/components/diagnostic/metric-card";
-import { SentenceHeatmap } from "@/components/diagnostic/sentence-heatmap";
-import { SuggestionList } from "@/components/diagnostic/suggestion-list";
-import { ModelLoadingModal } from "@/components/diagnostic/model-loading-modal";
-import { ParagraphBreakdown } from "@/components/diagnostic/paragraph-breakdown";
-import { SwarmActivity } from "@/components/diagnostic/swarm-activity";
-import { RunHistory } from "@/components/diagnostic/run-history";
-import { LlmAssist } from "@/components/diagnostic/llm-assist";
-import { DualGauges } from "@/components/diagnostic/dual-gauges";
-
-
-import { useWritingDiagnostic, type DiagnosticResult } from "@/hooks/use-writing-diagnostic";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import {
-  clearRuns,
-  deleteRun,
-  loadRuns,
-  saveRun,
-  type SavedRun,
-} from "@/lib/diagnostic-history";
+  SUPPORTED,
+  analyze,
+  createSandboxFs,
+  pretty,
+  type Entry,
+  type Level,
+  type ShellFs,
+  type Verdict,
+  type Visual,
+} from "@/lib/safe-shell";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Writing Diagnostic — Check Your Draft Before You Submit" },
+      { title: "Safe Shell — See What a Terminal Command Will Do Before It Runs" },
       {
         name: "description",
         content:
-          "Run a private, on-device diagnostic on your draft: per-paragraph AI detection, perplexity, burstiness, author consistency and tone drift. Nothing leaves your browser.",
+          "Type a terminal command and watch a live safety score and a visual blueprint of your folders update as you type. Dangerous typos and destructive roots are locked out; deletions go to the Trash.",
       },
-      { property: "og:title", content: "Writing Diagnostic — Check Your Draft Before You Submit" },
+      { property: "og:title", content: "Safe Shell — Terminal Commands With a Safety Net" },
       {
         property: "og:description",
-        content:
-          "Local analysis engines score every paragraph of your draft for machine-written patterns. Fully in-browser, no uploads.",
+        content: "Live confidence meter plus an animated file-system blueprint for every command, before anything touches your disk.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: DiagnosticPage,
+  component: SafeShellPage,
 });
 
-const MIN_CHARS = 500;
+interface Bridge {
+  shell?: {
+    home(): Promise<string>;
+    stat: ShellFs["stat"];
+    list: ShellFs["list"];
+    exec: ShellFs["exec"];
+  };
+}
 
-const CLASSIFICATION: Record<string, string> = {
-  likely_human: "Likely Human",
-  mixed: "Mixed",
-  likely_ai: "Likely AI",
-  review_needed: "Review Needed",
+const LEVEL: Record<Level, { label: string; color: string; text: string }> = {
+  safe: { label: "Clean & transparent", color: "var(--radar-safe)", text: "text-radar-safe" },
+  destructive: { label: "Destructive — changes files", color: "var(--radar-destructive)", text: "text-radar-destructive" },
+  uncertain: { label: "Uncertain paths", color: "var(--radar-uncertain)", text: "text-radar-uncertain" },
+  critical: { label: "Critical — locked", color: "var(--radar-critical)", text: "text-radar-critical" },
 };
 
+const EXAMPLES = ["ls", "mkdir Photos", "mv doc.txt Desktop/", "mv doc.txt Archive", "rm file .txt", "rm -rf /"];
 
-function DiagnosticPage() {
-  const [text, setText] = useState("");
-  const [runs, setRuns] = useState<SavedRun[]>([]);
-  const [viewed, setViewed] = useState<{ id: string; result: DiagnosticResult } | null>(null);
-  const savedFor = useRef<DiagnosticResult | null>(null);
+interface Log {
+  id: number;
+  kind: "cmd" | "out" | "err";
+  text: string;
+}
 
-  const {
-    status,
-    error,
-    result,
-    loadingLayer,
-    analysisProgress,
-    downloadProgress,
-    loadedMB,
-    totalMB,
-    load,
-    analyze,
-  } = useWritingDiagnostic();
+function SafeShellPage() {
+  const [fsys, setFs] = useState<ShellFs>(() => createSandboxFs());
+  const [cwd, setCwd] = useState("/Users/you");
+  const [input, setInput] = useState("");
+  const [verdict, setVerdict] = useState<Verdict | null>(null);
+  const [listings, setListings] = useState<Record<string, Entry[]>>({});
+  const [version, setVersion] = useState(0);
+  const [armed, setArmed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [log, setLog] = useState<Log[]>([]);
+  const seq = useRef(0);
+  const logId = useRef(0);
 
-
+  // Switch to the real filesystem inside the desktop app.
   useEffect(() => {
-    setRuns(loadRuns());
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const bridge = (window as Window & { desktop?: Bridge }).desktop?.shell;
+    if (!bridge) return;
+    void bridge.home().then((home) => {
+      setFs({ mode: "desktop", home, stat: bridge.stat, list: bridge.list, exec: bridge.exec });
+      setCwd(home);
+    });
   }, []);
 
-
   useEffect(() => {
-    if (!result || savedFor.current === result) return;
-    savedFor.current = result;
-    setViewed(null);
-    setRuns(saveRun(text, result));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+    const id = ++seq.current;
+    setArmed(false);
+    void (async () => {
+      const v = await analyze(input, cwd, fsys.home, (p) => fsys.stat(p)).catch(() => null);
+      if (id !== seq.current) return;
+      setVerdict(v);
+      const dirs = new Set<string>([cwd]);
+      const vis = v?.visual;
+      if (vis?.type === "view") dirs.add(vis.dir);
+      if (vis?.type === "create" || vis?.type === "delete") dirs.add(vis.parent);
+      if (vis?.type === "transfer") {
+        dirs.add(vis.fromDir);
+        dirs.add(vis.toDir);
+      }
+      const entries = await Promise.all([...dirs].map(async (d) => [d, await fsys.list(d).catch(() => [])] as const));
+      if (id === seq.current) setListings(Object.fromEntries(entries));
+    })();
+  }, [input, cwd, fsys, version]);
 
-  const shown = viewed?.result ?? result;
+  const push = (kind: Log["kind"], text: string) =>
+    setLog((l) => [...l.slice(-200), { id: logId.current++, kind, text }]);
 
-  const chars = text.trim().length;
-  const words = useMemo(() => (text.trim().match(/\S+/g) ?? []).length, [text]);
-  const tooShort = chars < MIN_CHARS;
-  const busy = status === "analyzing";
-
-  const handleClick = () => {
-    if (status === "idle" || status === "error") load();
-    else if (status === "ready") analyze(text);
+  const run = async () => {
+    if (!verdict?.op || verdict.locked || busy) return;
+    if (verdict.level !== "safe" && !armed) {
+      setArmed(true);
+      return;
+    }
+    setBusy(true);
+    push("cmd", `${pretty(fsys.home, cwd)} $ ${input.trim()}`);
+    try {
+      if (verdict.op.cmd === "cd") setCwd(verdict.op.paths[0]);
+      else {
+        const out = await fsys.exec(verdict.op);
+        if (out) push("out", out);
+      }
+      setInput("");
+    } catch (e) {
+      push("err", e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, "") : String(e));
+    } finally {
+      setBusy(false);
+      setArmed(false);
+      setVersion((n) => n + 1);
+    }
   };
 
-  const buttonLabel =
-    status === "idle" || status === "error"
-      ? "Start engine"
-      : status === "loading"
-        ? "Starting…"
-        : busy
-          ? `Analyzing… ${Math.round(analysisProgress * 100)}%`
-          : "Analyze draft";
+  const meta = verdict ? LEVEL[verdict.level] : null;
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background">
       <SiteHeader />
-      <ModelLoadingModal
-        open={!!loadingLayer}
-        layerName={loadingLayer?.name}
-        layerSize={loadingLayer?.size}
-        progress={downloadProgress}
-        loadedMB={loadedMB}
-        totalMB={totalMB}
-      />
+      <main className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+          {fsys.mode === "desktop" ? "Connected to your computer" : "Sandbox — practice folders, nothing real is touched"}
+        </p>
+        <h1 className="mt-2 font-display text-5xl leading-none">Safe Shell</h1>
+        <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
+          Type a command. Before anything runs, it is checked against your real folders, scored, and drawn below.
+          One plain command at a time — no chaining, wildcards or sudo. Deletions go to the Trash.
+        </p>
 
-      <main className="mx-auto max-w-7xl px-4 py-10 sm:px-6">
-        <header className="max-w-2xl">
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-            Swarm engine · L0–L7
-          </p>
-          <h1 className="mt-2 font-display text-5xl leading-[1.05] sm:text-6xl">
-            Writing Diagnostic
-          </h1>
-          <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-            Seven lightweight specialists sanitize, scan, profile and fingerprint your draft
-            paragraph by paragraph, and a 23MB semantic master is loaded only when they
-            disagree. Everything runs and caches inside your browser — nothing is uploaded.
-          </p>
-          <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
-            Browser analysis is approximate — use for drafting guidance only.
-          </p>
-        </header>
-
-
-        {error && (
-          <p
-            className="mt-8 bg-accent/10 px-4 py-3 font-mono text-[12px] leading-relaxed text-accent"
-            style={{ border: "1px solid #8B1A1A" }}
-          >
-            {error}
-          </p>
-        )}
-
-        <div className="mt-10 grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
-          {/* Left: input */}
-          <section className="bg-card p-6" style={{ border: "1px solid #0A0A0A" }}>
-            <div className="flex items-baseline justify-between gap-4">
-              <h2 className="font-display text-2xl">Your draft</h2>
-              <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
-                {words} words · {chars} chars
-              </p>
-            </div>
-            <textarea
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Paste at least 500 characters of your draft here…"
+        {/* Command line */}
+        <section className="mt-8 rounded-md bg-card p-4" style={{ border: "1px solid #0A0A0A" }}>
+          <div className="flex items-center gap-2 font-mono text-sm">
+            <span className="shrink-0 text-muted-foreground">{pretty(fsys.home, cwd)} $</span>
+            <Input
+              autoFocus
               spellCheck={false}
-              className="mt-4 min-h-[420px] w-full resize-y bg-surface p-4 text-[15px] leading-[1.9] outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-ring"
-              style={{ border: "1px solid rgba(10,10,10,0.12)" }}
+              autoComplete="off"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && void run()}
+              placeholder="mkdir Photos"
+              className="font-mono"
+              aria-label="Command"
             />
-            <div className="mt-4 flex flex-wrap items-center gap-4">
-              <button
-                type="button"
-                onClick={handleClick}
-                disabled={status === "loading" || busy || (status === "ready" && tooShort)}
-                className="rounded-full bg-foreground px-6 py-2.5 font-mono text-[12px] uppercase tracking-[0.1em] text-background transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                {buttonLabel}
-              </button>
-              {status === "ready" && tooShort && (
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  {MIN_CHARS - chars} more characters needed
-                </p>
-              )}
-              {viewed && (
-                <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground">
-                  Viewing a saved run
-                </p>
-              )}
-            </div>
-          </section>
-
-          {/* Right: metrics */}
-          <section className="space-y-4">
-            <div className="bg-card p-6" style={{ border: "1px solid #0A0A0A" }}>
-              <p className="font-mono text-[11px] uppercase tracking-[0.15em] text-muted-foreground">
-                Overall
-              </p>
-              <p className="mt-2 font-display text-7xl leading-none">
-                {shown ? shown.overall_score : "—"}
-                <span className="ml-2 font-mono text-[12px] tracking-[0.1em] text-muted-foreground">
-                  /100
-                </span>
-              </p>
-              <p className="mt-3 font-mono text-[12px] uppercase tracking-[0.15em]">
-                {shown ? (CLASSIFICATION[shown.classification] ?? shown.classification) : "Awaiting analysis"}
-              </p>
-              {shown?.mixed_authorship && (
-                <p className="mt-2 font-mono text-[11px] uppercase tracking-[0.15em] text-accent">
-                  Mixed Authorship Detected
-                </p>
-              )}
-            </div>
-
-            <DualGauges
-              ai={shown ? (shown.ai_pressure_score ?? 100 - shown.detector_score) : null}
-              human={shown ? (shown.human_signal_score ?? null) : null}
-              markers={shown?.human_markers}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-
-              <MetricCard
-                label="Perplexity"
-                value={shown?.perplexity_score ?? null}
-                caption="How unpredictable your word choices are."
-              />
-              <MetricCard
-                label="Burstiness"
-                value={shown?.burstiness_score ?? null}
-                caption="Variation in sentence length and rhythm."
-              />
-              <MetricCard
-                label="AI detector"
-                value={shown?.detector_score ?? null}
-                caption="Modern detector, run per paragraph and length-weighted."
-              />
-              <MetricCard
-                label="Tone drift"
-                value={shown?.tone_drift_score ?? null}
-                caption="Paragraph-to-paragraph voice consistency."
-              />
-              <MetricCard
-                label="Author consistency"
-                value={shown?.author_consistency_score ?? null}
-                caption="Spread between paragraph scores. Low means mixed authorship."
-              />
-            </div>
-
-            <RunHistory
-              runs={runs}
-              activeId={viewed?.id ?? null}
-              onOpen={(run) => {
-                setText(run.text);
-                setViewed({ id: run.id, result: run.result });
-              }}
-              onDelete={(id) => {
-                setRuns(deleteRun(id));
-                if (viewed?.id === id) setViewed(null);
-              }}
-              onClear={() => {
-                setRuns(clearRuns());
-                setViewed(null);
-              }}
-            />
-          </section>
-        </div>
-
-        <div className="mt-6">
-          <LlmAssist text={text} />
-        </div>
-
-        {shown && (
-          <div className="mt-6 space-y-6">
-            <ParagraphBreakdown
-              paragraphs={shown.paragraphs ?? []}
-              mixedAuthorship={!!shown.mixed_authorship}
-            />
-            <SwarmActivity layers={shown.swarm ?? []} overrides={shown.overrides ?? []} />
-            <SentenceHeatmap sentences={shown.sentences} />
-            <SuggestionList suggestions={shown.suggestions} />
-
           </div>
-        )}
+          <div className="mt-3 flex flex-wrap gap-2">
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex}
+                type="button"
+                onClick={() => setInput(ex)}
+                className="rounded-sm px-2 py-0.5 font-mono text-[11px] text-muted-foreground hover:text-foreground"
+                style={{ border: "1px solid var(--border-subtle)" }}
+              >
+                {ex}
+              </button>
+            ))}
+          </div>
+
+          {/* Safeguard radar */}
+          <div className="mt-5">
+            <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em]">
+              <span>Safeguard radar</span>
+              <span className={meta?.text}>{verdict ? `${verdict.score}% · ${meta?.label}` : "Waiting for a command"}</span>
+            </div>
+            <div className="relative mt-2 h-3 overflow-hidden rounded-sm bg-muted">
+              <div
+                className={cn("h-full transition-all duration-300", verdict?.level === "critical" && "animate-pulse")}
+                style={{
+                  width: `${verdict ? Math.max(4, verdict.score) : 0}%`,
+                  background: meta?.color,
+                  boxShadow: meta ? `0 0 14px ${meta.color}` : undefined,
+                }}
+              />
+            </div>
+            {verdict && <p className="mt-2 text-sm">{verdict.summary}</p>}
+            {verdict && verdict.issues.length > 0 && (
+              <ul className="mt-2 space-y-1">
+                {verdict.issues.map((i, k) => (
+                  <li key={k} className={cn("flex gap-2 text-sm", i.level !== "info" && LEVEL[i.level as Level].text)}>
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {i.text}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          <Button className="mt-4 w-full" size="lg" disabled={!verdict?.op || verdict.locked || busy} onClick={() => void run()}>
+            {verdict?.locked ? (
+              <>
+                <Lock className="h-4 w-4" /> Locked — fix the command first
+              </>
+            ) : armed ? (
+              <>
+                <AlertTriangle className="h-4 w-4" /> Click again to confirm
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" /> Run
+              </>
+            )}
+          </Button>
+        </section>
+
+        {/* Blueprint */}
+        <section className="mt-6 rounded-md bg-card p-4" style={{ border: "1px solid #0A0A0A" }}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-mono text-[11px] uppercase tracking-[0.14em]">Live-impact blueprint</h2>
+            <Badge variant="outline" className="font-mono text-[10px]">
+              {SUPPORTED.join(" · ")}
+            </Badge>
+          </div>
+          <Blueprint visual={verdict?.visual ?? { type: "view", dir: cwd }} listings={listings} home={fsys.home} />
+        </section>
+
+        {/* Output */}
+        <section className="mt-6 rounded-md bg-primary p-4 font-mono text-[12px] text-primary-foreground">
+          <div className="mb-2 flex items-center gap-2 uppercase tracking-[0.14em] opacity-60">
+            <ShieldCheck className="h-3.5 w-3.5" /> Output
+          </div>
+          <div className="max-h-64 space-y-1 overflow-auto whitespace-pre-wrap">
+            {log.length === 0 && <p className="opacity-50">Nothing run yet.</p>}
+            {log.map((l) => (
+              <p key={l.id} className={cn(l.kind === "cmd" && "opacity-60", l.kind === "err" && "text-radar-critical")}>
+                {l.text}
+              </p>
+            ))}
+          </div>
+        </section>
       </main>
+    </div>
+  );
+}
+
+function DirBox({
+  title,
+  entries,
+  ghosts = [],
+  ghostKind = "dir",
+  highlight,
+  deleted = [],
+  missing,
+}: {
+  title: string;
+  entries: Entry[];
+  ghosts?: string[];
+  ghostKind?: "file" | "dir";
+  highlight?: string;
+  deleted?: string[];
+  missing?: boolean;
+}) {
+  return (
+    <div
+      className={cn("min-w-0 flex-1 rounded-md p-3", missing && "animate-pulse")}
+      style={{ border: missing ? "2px dashed var(--radar-critical)" : "1px solid #0A0A0A" }}
+    >
+      <p className={cn("mb-2 truncate font-mono text-[11px]", missing && "text-radar-critical")}>
+        {title}
+        {missing && " — doesn't exist"}
+      </p>
+      <ul className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+        {entries.slice(0, 30).map((e) => {
+          const del = deleted.includes(e.name);
+          const hi = highlight === e.name;
+          const Icon = e.kind === "dir" ? Folder : File;
+          return (
+            <li
+              key={e.name}
+              className={cn(
+                "flex items-center gap-1.5 truncate rounded-sm px-1.5 py-1 text-[12px]",
+                del && "text-radar-critical line-through",
+                hi && "bg-muted font-semibold",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              <span className="truncate">{e.name}</span>
+            </li>
+          );
+        })}
+        {ghosts.map((g) => {
+          const Icon = ghostKind === "dir" ? Folder : File;
+          return (
+            <li
+              key={`ghost-${g}`}
+              className="animate-ghost flex items-center gap-1.5 truncate rounded-sm px-1.5 py-1 text-[12px] text-radar-safe"
+              style={{ border: "1px dashed var(--radar-safe)" }}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0" strokeWidth={1.5} />
+              <span className="truncate">{g}</span>
+            </li>
+          );
+        })}
+        {entries.length === 0 && ghosts.length === 0 && <li className="text-[12px] text-muted-foreground">(empty)</li>}
+      </ul>
+    </div>
+  );
+}
+
+function Arrow({ broken, label }: { broken: boolean; label: string }) {
+  const stroke = broken ? "var(--radar-critical)" : "var(--radar-safe)";
+  return (
+    <div className="flex shrink-0 flex-col items-center justify-center gap-1 px-1 py-2">
+      <svg width="110" height="24" viewBox="0 0 110 24" aria-hidden>
+        {broken ? (
+          <>
+            <line x1="2" y1="12" x2="44" y2="12" stroke={stroke} strokeWidth="2.5" />
+            <line x1="60" y1="16" x2="96" y2="6" stroke={stroke} strokeWidth="2.5" strokeDasharray="4 4" />
+            <path d="M48 6 L56 18 M56 6 L48 18" stroke={stroke} strokeWidth="2" />
+          </>
+        ) : (
+          <>
+            <line x1="2" y1="12" x2="96" y2="12" stroke={stroke} strokeWidth="2.5" strokeDasharray="8 4" className="animate-dash" />
+            <path d="M94 5 L106 12 L94 19" fill="none" stroke={stroke} strokeWidth="2.5" />
+          </>
+        )}
+      </svg>
+      <span className={cn("font-mono text-[10px] uppercase", broken ? "text-radar-critical" : "text-radar-safe")}>{label}</span>
+    </div>
+  );
+}
+
+function Blueprint({ visual, listings, home }: { visual: Visual; listings: Record<string, Entry[]>; home: string }) {
+  const L = (d: string) => listings[d] ?? [];
+  const P = (d: string) => pretty(home, d);
+  return (
+    <div className="mt-4">
+      {visual.type === "view" && <DirBox title={P(visual.dir)} entries={L(visual.dir)} />}
+      {visual.type === "create" && (
+        <DirBox
+          title={P(visual.parent)}
+          entries={L(visual.parent)}
+          ghosts={visual.broken ? [] : visual.names.filter((n) => !L(visual.parent).some((e) => e.name === n))}
+          ghostKind={visual.kind}
+          missing={visual.broken}
+        />
+      )}
+      {visual.type === "delete" && <DirBox title={P(visual.parent)} entries={L(visual.parent)} deleted={visual.names} />}
+      {visual.type === "transfer" && (
+        <div className="relative">
+          <div className="flex flex-col items-stretch gap-2 md:flex-row md:items-center">
+            <DirBox title={P(visual.fromDir)} entries={L(visual.fromDir)} highlight={visual.name} />
+            <Arrow broken={visual.broken} label={visual.broken ? "broken path" : visual.mode} />
+            <DirBox
+              title={P(visual.toDir) + (visual.broken ? "" : "")}
+              entries={visual.broken ? [] : L(visual.toDir).filter((e) => !(visual.mode === "rename" && e.name === visual.name))}
+              ghosts={visual.broken ? [] : [visual.toName]}
+              ghostKind="file"
+              missing={visual.broken}
+            />
+          </div>
+          {visual.broken && visual.note && (
+            <div
+              role="alert"
+              className="mx-auto mt-3 flex max-w-md items-start gap-2 rounded-md bg-card p-3 text-sm text-radar-critical"
+              style={{ border: "2px solid var(--radar-critical)" }}
+            >
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+              {visual.note}
+            </div>
+          )}
+          {!visual.broken && (
+            <p className="mt-2 flex items-center justify-center gap-1 font-mono text-[11px] text-muted-foreground">
+              {visual.name} <ArrowRight className="h-3 w-3" /> {P(visual.toDir)}/{visual.toName}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
