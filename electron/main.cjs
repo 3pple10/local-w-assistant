@@ -44,6 +44,8 @@ function createWindow() {
   });
 }
 
+require("./safe-shell.cjs").register(ipcMain, shell);
+
 ipcMain.handle("pick-directory", async () => {
   const result = await dialog.showOpenDialog(win, { properties: ["openDirectory"] });
   return result.canceled ? null : result.filePaths[0];

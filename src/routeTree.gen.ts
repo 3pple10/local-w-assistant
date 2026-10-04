@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as StartHereRouteImport } from './routes/start-here'
 import { Route as ModelsRouteImport } from './routes/models'
 import { Route as LibraryRouteImport } from './routes/library'
-import { Route as HumaniseRouteImport } from './routes/humanise'
 import { Route as FetcherRouteImport } from './routes/fetcher'
 import { Route as DesignRouteImport } from './routes/design'
 import { Route as ChatRouteImport } from './routes/chat'
@@ -35,11 +34,6 @@ const ModelsRoute = ModelsRouteImport.update({
 const LibraryRoute = LibraryRouteImport.update({
   id: '/library',
   path: '/library',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HumaniseRoute = HumaniseRouteImport.update({
-  id: '/humanise',
-  path: '/humanise',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FetcherRoute = FetcherRouteImport.update({
@@ -88,7 +82,6 @@ export interface FileRoutesByFullPath {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/fetcher': typeof FetcherRoute
-  '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
@@ -102,7 +95,6 @@ export interface FileRoutesByTo {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/fetcher': typeof FetcherRoute
-  '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
@@ -117,7 +109,6 @@ export interface FileRoutesById {
   '/chat': typeof ChatRoute
   '/design': typeof DesignRouteWithChildren
   '/fetcher': typeof FetcherRoute
-  '/humanise': typeof HumaniseRoute
   '/library': typeof LibraryRoute
   '/models': typeof ModelsRoute
   '/start-here': typeof StartHereRoute
@@ -133,7 +124,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/fetcher'
-    | '/humanise'
     | '/library'
     | '/models'
     | '/start-here'
@@ -147,7 +137,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/fetcher'
-    | '/humanise'
     | '/library'
     | '/models'
     | '/start-here'
@@ -161,7 +150,6 @@ export interface FileRouteTypes {
     | '/chat'
     | '/design'
     | '/fetcher'
-    | '/humanise'
     | '/library'
     | '/models'
     | '/start-here'
@@ -176,7 +164,6 @@ export interface RootRouteChildren {
   ChatRoute: typeof ChatRoute
   DesignRoute: typeof DesignRouteWithChildren
   FetcherRoute: typeof FetcherRoute
-  HumaniseRoute: typeof HumaniseRoute
   LibraryRoute: typeof LibraryRoute
   ModelsRoute: typeof ModelsRoute
   StartHereRoute: typeof StartHereRoute
@@ -205,13 +192,6 @@ declare module '@tanstack/react-router' {
       path: '/library'
       fullPath: '/library'
       preLoaderRoute: typeof LibraryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/humanise': {
-      id: '/humanise'
-      path: '/humanise'
-      fullPath: '/humanise'
-      preLoaderRoute: typeof HumaniseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/fetcher': {
@@ -301,7 +281,6 @@ const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRoute,
   DesignRoute: DesignRouteWithChildren,
   FetcherRoute: FetcherRoute,
-  HumaniseRoute: HumaniseRoute,
   LibraryRoute: LibraryRoute,
   ModelsRoute: ModelsRoute,
   StartHereRoute: StartHereRoute,

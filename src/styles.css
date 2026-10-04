@@ -37,6 +37,10 @@
   --color-surface: var(--surface);
   --color-surface-foreground: var(--surface-foreground);
   --color-surface-raised: var(--surface-raised);
+  --color-radar-safe: var(--radar-safe);
+  --color-radar-destructive: var(--radar-destructive);
+  --color-radar-uncertain: var(--radar-uncertain);
+  --color-radar-critical: var(--radar-critical);
   --font-sans: "Libre Baskerville", Georgia, "Times New Roman", serif;
   --font-display: "Cormorant Garamond", "Times New Roman", serif;
   --font-mono: "Courier Prime", ui-monospace, SFMono-Regular, monospace;
@@ -71,6 +75,10 @@
   --border-subtle: rgba(10, 10, 10, 0.12);
   --input: rgba(10, 10, 10, 0.12);
   --ring: #0A0A0A;
+  --radar-safe: #2F6B3A;
+  --radar-destructive: #D98A1C;
+  --radar-uncertain: #B4501A;
+  --radar-critical: #B0122B;
   /* Liquid glass tokens (light) */
   --glass-bg: rgba(249, 246, 240, 0.55);
   --glass-bg-strong: rgba(249, 246, 240, 0.72);
@@ -194,3 +202,8 @@
     z-index: 2;
   }
 }
+
+@keyframes dash-flow { to { stroke-dashoffset: -24; } }
+.animate-dash { animation: dash-flow 0.9s linear infinite; }
+@keyframes ghost-shimmer { 0%,100% { opacity: .45; } 50% { opacity: 1; } }
+.animate-ghost { animation: ghost-shimmer 1.6s ease-in-out infinite; }
