@@ -26,7 +26,7 @@ function createWindow() {
     width: 1440,
     height: 940,
     backgroundColor: "#F4EFE6",
-    title: "Writing Diagnostic",
+    title: "Workbench",
     show: false,
     webPreferences: {
       contextIsolation: true,
@@ -35,7 +35,7 @@ function createWindow() {
     },
   });
   loadApplication(win).catch((error) => {
-    dialog.showErrorBox("Unable to open Writing Diagnostic", error.message);
+    dialog.showErrorBox("Unable to open Workbench", error.message);
   });
   win.once("ready-to-show", () => win?.show());
   win.webContents.setWindowOpenHandler(({ url }) => {
