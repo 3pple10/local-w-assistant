@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "asset_id": "80ac54bd-bea9-4eff-8b60-fe59024cf981",
+  "asset_id": "3c52b883-af6b-458c-a454-7eb8c3c2d749",
   "project_id": "a0b57f2d-7e20-44dc-923e-389a4b89202d",
-  "url": "/__l5e/assets-v1/80ac54bd-bea9-4eff-8b60-fe59024cf981/Writing-Diagnostic-linux-x64.tar.gz",
-  "r2_key": "a/v1/a0b57f2d-7e20-44dc-923e-389a4b89202d/80ac54bd-bea9-4eff-8b60-fe59024cf981/Writing-Diagnostic-linux-x64.tar.gz",
-  "original_filename": "Writing-Diagnostic-linux-x64.tar.gz",
-  "size": 238801607,
+  "url": "/__l5e/assets-v1/3c52b883-af6b-458c-a454-7eb8c3c2d749/Workbench-linux-x64.tar.gz",
+  "r2_key": "a/v1/a0b57f2d-7e20-44dc-923e-389a4b89202d/3c52b883-af6b-458c-a454-7eb8c3c2d749/Workbench-linux-x64.tar.gz",
+  "original_filename": "Workbench-linux-x64.tar.gz",
+  "size": 240271763,
   "content_type": "application/x-gzip",
-  "created_at": "2026-09-19T03:40:57Z"
+  "created_at": "2026-10-05T04:38:15Z"
 }
