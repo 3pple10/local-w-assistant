@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, File, Folder, Lock, Play, ShieldCheck } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { AlertTriangle, ArrowRight, Bot, File, Folder, Lock, Play, ShieldCheck } from "lucide-react";
+import { explainBlocked } from "@/lib/explain-block.functions";
 import { SiteHeader } from "@/components/site-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -178,8 +180,9 @@ function SafeShellPage() {
             ))}
           </div>
 
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
           {/* Safeguard radar */}
-          <div className="mt-5">
+          <div>
             <div className="flex items-baseline justify-between font-mono text-[11px] uppercase tracking-[0.14em]">
               <span>Safeguard radar</span>
               <span className={meta?.text}>{verdict ? `${verdict.score}% · ${meta?.label}` : "Waiting for a command"}</span>
@@ -205,6 +208,14 @@ function SafeShellPage() {
                 ))}
               </ul>
             )}
+          </div>
+          <BlockExplainer
+            command={input.trim()}
+            verdict={verdict}
+            cwd={pretty(fsys.home, cwd)}
+            check={(c) => analyze(c, cwd, fsys.home, (p) => fsys.stat(p)).catch(() => null)}
+            onUse={setInput}
+          />
           </div>
 
           <Button className="mt-4 w-full" size="lg" disabled={!verdict?.op || verdict.locked || busy} onClick={() => void run()}>
@@ -250,6 +261,102 @@ function SafeShellPage() {
           </div>
         </section>
       </main>
+    </div>
+  );
+}
+
+type Explain = { why: string; alternative: string; note: string; altScore: number | null; altLevel: Level | null };
+
+function BlockExplainer({
+  command,
+  verdict,
+  cwd,
+  check,
+  onUse,
+}: {
+  command: string;
+  verdict: Verdict | null;
+  cwd: string;
+  check: (c: string) => Promise<Verdict | null>;
+  onUse: (c: string) => void;
+}) {
+  const explain = useServerFn(explainBlocked);
+  const [forCmd, setForCmd] = useState("");
+  const [res, setRes] = useState<Explain | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const locked = !!verdict?.locked;
+
+  // Fresh context for every command: clear the previous answer when the command changes.
+  useEffect(() => {
+    if (command !== forCmd) {
+      setRes(null);
+      setErr(null);
+    }
+  }, [command, forCmd]);
+
+  const ask = async () => {
+    if (!verdict || !locked || loading) return;
+    setLoading(true);
+    setRes(null);
+    setErr(null);
+    setForCmd(command);
+    try {
+      const r = await explain({ data: { command, cwd, issues: verdict.issues.map((i) => i.text) } });
+      if ("error" in r && r.error) setErr(r.error);
+      else if ("why" in r) {
+        const v = r.alternative ? await check(r.alternative) : null;
+        setRes({ why: r.why ?? "", alternative: r.alternative ?? "", note: r.note ?? "", altScore: v?.score ?? null, altLevel: v?.level ?? null });
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col rounded-md bg-primary p-3 font-mono text-[12px] text-primary-foreground">
+      <div className="flex items-center justify-between uppercase tracking-[0.14em] opacity-70">
+        <span className="flex items-center gap-1.5 text-[11px]">
+          <Bot className="h-3.5 w-3.5" /> Lock explainer
+        </span>
+        <span className="text-[10px]">explains only · never runs</span>
+      </div>
+      <div className="mt-3 min-h-[96px] flex-1 space-y-2 whitespace-pre-wrap">
+        {!locked && !res && !loading && <p className="opacity-50">When a command is locked, ask here why — and get a safe alternative.</p>}
+        {locked && !res && !loading && !err && <p className="opacity-70">“{command}” is locked. Press Explain.</p>}
+        {loading && <p className="animate-pulse opacity-70">Reading “{forCmd}”…</p>}
+        {err && <p className="text-radar-critical">{err}</p>}
+        {res && (
+          <>
+            <p className="opacity-60">&gt; {forCmd}</p>
+            <p>{res.why}</p>
+            {res.alternative ? (
+              <div className="rounded-sm p-2" style={{ border: "1px solid currentColor" }}>
+                <p className="text-[10px] uppercase opacity-60">Safe alternative</p>
+                <p className="mt-1 text-[13px]">$ {res.alternative}</p>
+                {res.note && <p className="mt-1 opacity-70">{res.note}</p>}
+                <p className="mt-1 text-[10px] uppercase opacity-60">
+                  Re-checked by Safe Shell: {res.altScore === null ? "can't check" : `${res.altScore}% · ${LEVEL[res.altLevel!].label}`}
+                </p>
+              </div>
+            ) : (
+              <p className="opacity-70">No safe alternative exists for this one.</p>
+            )}
+          </>
+        )}
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Button size="sm" variant="secondary" disabled={!locked || loading} onClick={() => void ask()}>
+          <Bot className="h-3.5 w-3.5" /> Explain
+        </Button>
+        {res?.alternative && res.altLevel !== "critical" && (
+          <Button size="sm" variant="secondary" onClick={() => onUse(res.alternative)}>
+            Use alternative
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
