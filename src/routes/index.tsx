@@ -309,7 +309,7 @@ function BlockExplainer({
         setRes({ why: r.why ?? "", alternative: r.alternative ?? "", note: r.note ?? "", altScore: v?.score ?? null, altLevel: v?.level ?? null });
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Something went wrong.");
+      setErr(e instanceof Error ? e.message : typeof e === "string" ? e : "Something went wrong — try again.");
     } finally {
       setLoading(false);
     }
@@ -348,11 +348,11 @@ function BlockExplainer({
         )}
       </div>
       <div className="mt-3 flex gap-2">
-        <Button size="sm" variant="secondary" disabled={!locked || loading} onClick={() => void ask()}>
+        <Button size="sm" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90" disabled={!locked || loading} onClick={() => void ask()}>
           <Bot className="h-3.5 w-3.5" /> Explain
         </Button>
         {res?.alternative && res.altLevel !== "critical" && (
-          <Button size="sm" variant="secondary" onClick={() => onUse(res.alternative)}>
+          <Button size="sm" className="bg-primary-foreground text-primary hover:bg-primary-foreground/90" onClick={() => onUse(res.alternative)}>
             Use alternative
           </Button>
         )}
