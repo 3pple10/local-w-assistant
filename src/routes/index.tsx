@@ -363,7 +363,7 @@ function Blueprint({ visual, listings, home }: { visual: Visual; listings: Recor
             <DirBox title={P(visual.fromDir)} entries={L(visual.fromDir)} highlight={visual.name} />
             <Arrow broken={visual.broken} label={visual.broken ? "broken path" : visual.mode} />
             <DirBox
-              title={P(visual.toDir) + (visual.broken ? "" : "")}
+              title={visual.broken ? `${P(visual.toDir)}/${visual.toName}`.replace("//", "/") : P(visual.toDir)}
               entries={visual.broken ? [] : L(visual.toDir).filter((e) => !(visual.mode === "rename" && e.name === visual.name))}
               ghosts={visual.broken ? [] : [visual.toName]}
               ghostKind="file"
