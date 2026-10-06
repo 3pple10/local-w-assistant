@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "asset_id": "3c52b883-af6b-458c-a454-7eb8c3c2d749",
+  "asset_id": "f9190cb8-0f08-48f7-98b9-c6241820378f",
   "project_id": "a0b57f2d-7e20-44dc-923e-389a4b89202d",
-  "url": "/__l5e/assets-v1/3c52b883-af6b-458c-a454-7eb8c3c2d749/Workbench-linux-x64.tar.gz",
-  "r2_key": "a/v1/a0b57f2d-7e20-44dc-923e-389a4b89202d/3c52b883-af6b-458c-a454-7eb8c3c2d749/Workbench-linux-x64.tar.gz",
-  "original_filename": "Workbench-linux-x64.tar.gz",
-  "size": 240271763,
-  "content_type": "application/x-gzip",
-  "created_at": "2026-10-05T04:38:15Z"
+  "url": "/__l5e/assets-v1/f9190cb8-0f08-48f7-98b9-c6241820378f/Workbench-Windows-x64.zip",
+  "r2_key": "a/v1/a0b57f2d-7e20-44dc-923e-389a4b89202d/f9190cb8-0f08-48f7-98b9-c6241820378f/Workbench-Windows-x64.zip",
+  "original_filename": "Workbench-Windows-x64.zip",
+  "size": 248431853,
+  "content_type": "application/zip",
+  "created_at": "2026-10-06T06:02:30Z"
 }
