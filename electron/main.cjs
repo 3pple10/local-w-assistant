@@ -1,7 +1,7 @@
 // Desktop shell. Runs the local download service in-process, so the user never
 // has to start anything from a terminal.
 
-const { app, BrowserWindow, shell, dialog, ipcMain } = require("electron");
+const { app, BrowserWindow, shell, dialog, ipcMain, safeStorage } = require("electron");
 const path = require("path");
 const downloader = require("./downloader.cjs");
 const appServer = require("./app-server.cjs");
@@ -45,6 +45,7 @@ function createWindow() {
 }
 
 require("./safe-shell.cjs").register(ipcMain, shell);
+require("./agent.cjs").register(ipcMain, { app, BrowserWindow, shell, safeStorage });
 
 ipcMain.handle("pick-directory", async () => {
   const result = await dialog.showOpenDialog(win, { properties: ["openDirectory"] });
