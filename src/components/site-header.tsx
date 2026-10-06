@@ -28,6 +28,9 @@ export function SiteHeader() {
           <Link to="/chat" className={navLinkClass} activeProps={{ className: "text-foreground" }}>
             Chat
           </Link>
+          <Link to="/agent" className={navLinkClass} activeProps={{ className: "text-foreground" }}>
+            Agent
+          </Link>
           <Link to="/models" className={navLinkClass} activeProps={{ className: "text-foreground" }}>
             Models
           </Link>
