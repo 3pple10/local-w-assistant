@@ -22,9 +22,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Download, FolderOpen, Square, Terminal, Trash2, AlertTriangle } from "lucide-react";
-import desktopBundle from "@/assets/desktop-bundle.tar.gz.asset.json";
-import macArm from "@/assets/desktop-bundle-mac-arm64.zip.asset.json";
-import macIntel from "@/assets/desktop-bundle-mac-x64.zip.asset.json";
+import { DESKTOP_PLATFORMS } from "@/lib/desktop-versions";
 import {
   AUDIO_CONTAINERS,
   CONTAINER_FORMATS,
@@ -344,32 +342,30 @@ function FetcherPage() {
                   page as-is if your local service is already running.
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-2">
-                <div className="flex flex-wrap gap-2">
-                  <Button asChild>
-                    <a href={macArm.url} download>
-                      <Download className="mr-2 size-4" />
-                      Mac · Apple Silicon (185 MB)
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <a href={macIntel.url} download>
-                      <Download className="mr-2 size-4" />
-                      Mac · Intel (195 MB)
-                    </a>
-                  </Button>
-                  <Button asChild variant="outline">
-                    <a href={desktopBundle.url} download>
-                      <Download className="mr-2 size-4" />
-                      Linux (228 MB)
-                    </a>
-                  </Button>
-                </div>
-                <p className="max-w-sm font-mono text-[11px] leading-relaxed uppercase tracking-[0.14em] text-muted-foreground">
-                  Unpack, then open “Writing Diagnostic”. On a Mac the first open needs
-                  right-click → Open, since the app is not signed by Apple yet.
-                </p>
-              </div>
+              <ul className="grid w-full gap-3 sm:grid-cols-2">
+                {DESKTOP_PLATFORMS.map((p) => (
+                  <li key={p.name} className="rounded-xl border border-[color:var(--border-subtle)] p-4">
+                    <p className="font-mono text-[11px] uppercase tracking-[0.16em]">{p.name}</p>
+                    <Button asChild size="sm" className="mt-3">
+                      <a href={p.builds[0].url} download>
+                        <Download className="mr-2 size-4" />
+                        Download latest ({p.builds[0].sizeMb} MB)
+                      </a>
+                    </Button>
+                    {p.builds.length > 1 && (
+                      <div className="mt-3 space-y-1">
+                        <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Older versions</p>
+                        {p.builds.slice(1).map((v) => (
+                          <a key={v.url} href={v.url} download className="block text-[13px] underline underline-offset-4 hover:text-foreground text-muted-foreground">
+                            {v.label} · {v.date} · {v.sizeMb} MB
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">{p.hint}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
           </section>
         )}

@@ -83,6 +83,7 @@ function SafeShellPage() {
     const bridge = (window as Window & { desktop?: Bridge }).desktop?.shell;
     if (!bridge) return;
     void bridge.home().then((home) => {
+      if (!home.startsWith("/")) return; // Windows paths: stay on practice folders
       setFs({ mode: "desktop", home, stat: bridge.stat, list: bridge.list, exec: bridge.exec });
       setCwd(home);
     });
