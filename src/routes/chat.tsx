@@ -106,7 +106,7 @@ function ChatPage() {
       let final: string;
       if (useDesk && agent) {
         setDeskBusy(true);
-        try { final = await agent.llm(msgs.slice(-19), "builder"); } finally { setDeskBusy(false); }
+        try { final = await agent.llm([msgs[0], ...msgs.slice(1).slice(-18)], "builder"); } finally { setDeskBusy(false); }
       } else {
         final = await llm.generate(msgs, { onToken: (t) => setStreaming(t), maxNewTokens: 768 });
       }
