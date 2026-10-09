@@ -1,10 +1,10 @@
 // Desktop downloads per platform: newest first, only the last 3 builds are kept.
-import macArm3 from "@/assets/desktop-bundle-mac-arm64.zip.asset.json";
+import macArm4 from "@/assets/desktop-bundle-mac-arm64.zip.asset.json";
+import macArm3 from "@/assets/desktop-versions/mac-arm64-v3.asset.json";
 import macArm2 from "@/assets/desktop-versions/mac-arm64-v2.asset.json";
-import macArm1 from "@/assets/desktop-versions/mac-arm64-v1.asset.json";
-import macX3 from "@/assets/desktop-bundle-mac-x64.zip.asset.json";
+import macX4 from "@/assets/desktop-bundle-mac-x64.zip.asset.json";
+import macX3 from "@/assets/desktop-versions/mac-x64-v3.asset.json";
 import macX2 from "@/assets/desktop-versions/mac-x64-v2.asset.json";
-import macX1 from "@/assets/desktop-versions/mac-x64-v1.asset.json";
 import linux2 from "@/assets/desktop-bundle.tar.gz.asset.json";
 import linux1 from "@/assets/desktop-versions/linux-v1.asset.json";
 import win1 from "@/assets/desktop-versions/windows-v1.asset.json";
@@ -33,12 +33,12 @@ export const DESKTOP_PLATFORMS: DesktopPlatform[] = [
   {
     name: "Mac · Apple Silicon",
     hint: "First open: right-click → Open (not signed by Apple yet).",
-    builds: [b(macArm3, "Latest — Safe Shell + Fetcher"), b(macArm2, "Previous — Fetcher fixes"), b(macArm1, "Original")],
+    builds: [b(macArm4, "Latest — Agent + Chat sources"), b(macArm3, "Previous — Safe Shell + Fetcher"), b(macArm2, "Older — Fetcher fixes")],
   },
   {
     name: "Mac · Intel",
     hint: "First open: right-click → Open (not signed by Apple yet).",
-    builds: [b(macX3, "Latest — Safe Shell + Fetcher"), b(macX2, "Previous — Fetcher fixes"), b(macX1, "Original")],
+    builds: [b(macX4, "Latest — Agent + Chat sources"), b(macX3, "Previous — Safe Shell + Fetcher"), b(macX2, "Older — Fetcher fixes")],
   },
   {
     name: "Windows",

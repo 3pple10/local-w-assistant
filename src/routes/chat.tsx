@@ -36,8 +36,27 @@ const SYSTEM =
   "Answer concisely. Always wrap code in fenced code blocks with the correct language tag. " +
   "When the user attaches data files, reason over the given contents only.";
 
+type DesktopAgent = {
+  getSettings(): Promise<{ baseURL: string; model: string }>;
+  llm(messages: unknown[], role: string): Promise<string>;
+};
+const desktopAgent = (): DesktopAgent | null =>
+  typeof window === "undefined" ? null : ((window as unknown as { desktop?: { agent?: DesktopAgent } }).desktop?.agent ?? null);
+
 function ChatPage() {
   const llm = useLocalLlm();
+  const [source, setSource] = useState<"tab" | "desktop">("tab");
+  const [agent, setAgent] = useState<DesktopAgent | null>(null);
+  const [desk, setDesk] = useState<{ baseURL: string; model: string } | null>(null);
+  const [deskBusy, setDeskBusy] = useState(false);
+  useEffect(() => {
+    const a = desktopAgent();
+    setAgent(a);
+    if (a) void a.getSettings().then((s) => {
+      setDesk(s);
+      if (s.baseURL && s.model) setSource("desktop");
+    }).catch(() => {});
+  }, []);
   const [messages, setMessages] = useState<Msg[]>([]);
   const [streaming, setStreaming] = useState<string | null>(null);
   const [input, setInput] = useState("");
@@ -46,8 +65,9 @@ function ChatPage() {
   const boxRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
 
-  const ready = llm.status === "ready";
-  const busy = llm.status === "generating";
+  const useDesk = source === "desktop" && !!agent && !!desk?.model;
+  const ready = useDesk ? !deskBusy : llm.status === "ready";
+  const busy = useDesk ? deskBusy : llm.status === "generating";
 
   useEffect(() => {
     boxRef.current?.scrollTo({ top: boxRef.current.scrollHeight, behavior: "smooth" });
@@ -82,10 +102,14 @@ function ChatPage() {
     }));
 
     try {
-      const final = await llm.generate([{ role: "system", content: SYSTEM }, ...payload], {
-        onToken: (t) => setStreaming(t),
-        maxNewTokens: 768,
-      });
+      const msgs = [{ role: "system", content: SYSTEM }, ...payload];
+      let final: string;
+      if (useDesk && agent) {
+        setDeskBusy(true);
+        try { final = await agent.llm([msgs[0], ...msgs.slice(1).slice(-18)], "builder"); } finally { setDeskBusy(false); }
+      } else {
+        final = await llm.generate(msgs, { onToken: (t) => setStreaming(t), maxNewTokens: 768 });
+      }
       setMessages((prev) => [...prev, { role: "assistant", content: final }]);
     } catch (err) {
       setMessages((prev) => [
@@ -230,7 +254,7 @@ function ChatPage() {
                 {busy ? (
                   <button
                     type="button"
-                    onClick={llm.stop}
+                    onClick={useDesk ? undefined : llm.stop} disabled={useDesk}
                     className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 font-mono text-[12px] uppercase tracking-[0.1em] text-background"
                   >
                     <Square className="h-3 w-3" strokeWidth={1.5} aria-hidden /> Stop
@@ -250,7 +274,32 @@ function ChatPage() {
           </section>
 
           <div className="space-y-6">
-            <ModelPicker compact />
+            <section className="bg-card p-5" style={{ border: "1px solid #0A0A0A" }}>
+              <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Model source</p>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {([["tab", "Built-in"], ["desktop", "Runner / own key"]] as const).map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    disabled={v === "desktop" && !agent}
+                    onClick={() => setSource(v)}
+                    className={`px-3 py-2 font-mono text-[11px] uppercase tracking-[0.1em] disabled:opacity-40 ${source === v ? "bg-foreground text-background" : ""}`}
+                    style={{ border: "1px solid #0A0A0A" }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-3 text-[13px] leading-relaxed text-muted-foreground">
+                {!agent
+                  ? "Ollama, LM Studio and your own cloud key work in the desktop app."
+                  : desk?.model
+                    ? `Uses ${desk.model} — the same model chosen on the Agent page.`
+                    : "Choose a runner or key on the Agent page first."}{" "}
+                {agent && <Link to="/agent" className="underline underline-offset-4">Agent settings</Link>}
+              </p>
+            </section>
+            {!useDesk && <ModelPicker compact />}
           </div>
         </div>
       </main>
