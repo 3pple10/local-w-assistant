@@ -82,11 +82,19 @@ export function verifyModel(model: LlmModel, report: DeviceReport): Verdict {
   }
 
   if (report.ramGB != null) {
-    if (report.ramGB < model.minRamGB) {
+    // Browsers and Electron never report more than 8GB (privacy cap), so 8 means
+    // "8GB or more" — with WebGPU we can't prove a shortfall, only warn.
+    const capped = report.ramGB >= 8 && report.webgpu;
+    if (report.ramGB >= model.minRamGB) {
+      reasons.push(`Device memory ${report.ramGB}GB ≥ ${model.minRamGB}GB required.`);
+    } else if (capped) {
+      reasons.push(
+        `Memory reads as 8GB — the most a browser will ever report. This model suggests ${model.minRamGB}GB; it may run slowly if your machine really has 8GB.`,
+      );
+      if (level === "pass") level = "warn";
+    } else {
       reasons.push(`Reported device memory ${report.ramGB}GB is below the ${model.minRamGB}GB this model needs.`);
       level = "fail";
-    } else {
-      reasons.push(`Device memory ${report.ramGB}GB ≥ ${model.minRamGB}GB required.`);
     }
   } else {
     reasons.push("Browser does not report device memory — proceeding on best effort.");

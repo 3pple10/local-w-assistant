@@ -130,6 +130,57 @@ function register(ipcMain, { app, BrowserWindow, shell, safeStorage }) {
     return JSON.parse(text).choices?.[0]?.message?.content ?? "";
   });
 
+  // ---- Jcode harness (bundled binary, Mac builds only) ----
+  const jcodeBin = () => {
+    const name = process.platform === "win32" ? "jcode.exe" : "jcode";
+    const p = path.join(__dirname, "bin", name).replace("app.asar", "app.asar.unpacked");
+    return fs.existsSync(p) ? p : null;
+  };
+  let jcodeJob = null;
+
+  ipcMain.handle("jcode-status", () => {
+    const bin = jcodeBin();
+    if (!bin) return { available: false };
+    const out = require("child_process").spawnSync(bin, ["version"], { encoding: "utf8", timeout: 8000 });
+    return { available: true, version: (out.stdout || "").trim().split("\n")[0] || "unknown" };
+  });
+
+  ipcMain.handle("jcode-run", (e, { slug, message }) => {
+    const bin = jcodeBin();
+    if (!bin) throw new Error("Jcode isn't included in this version of the app.");
+    if (jcodeJob) throw new Error("Jcode is already working on something.");
+    const s = readSettings();
+    let provider = null;
+    if (/:11434\b/.test(s.baseURL || "")) provider = "ollama";
+    else if (/:1234\b/.test(s.baseURL || "")) provider = "lmstudio";
+    if (!provider || !s.model) throw new Error("Jcode runs offline only: pick Ollama or LM Studio under Local runner first.");
+    const dir = appDir(slug);
+    fs.mkdirSync(dir, { recursive: true });
+    const text = String(message || "").slice(0, 8000);
+    if (!text.trim()) throw new Error("Describe what to build.");
+    // No shell tool: Jcode can only read and edit files inside this app's folder.
+    const args = ["run", "--provider", provider, "--model", s.model, "--cwd", dir, "--tools", "read,write,apply_patch", "--ndjson", "--no-update", "--no-selfdev", text];
+    const child = require("child_process").spawn(bin, args, { cwd: dir, shell: false, env: { ...process.env, HOME: os.homedir() } });
+    jcodeJob = child;
+    const send = (type, data) => { if (!e.sender.isDestroyed()) e.sender.send("jcode-event", { type, data }); };
+    const lines = (stream, type) => {
+      let buf = "";
+      stream.on("data", (c) => {
+        buf += c.toString();
+        const parts = buf.split("\n");
+        buf = parts.pop();
+        for (const l of parts) if (l.trim()) send(type, l);
+      });
+    };
+    lines(child.stdout, "out");
+    lines(child.stderr, "err");
+    child.on("close", (code) => { jcodeJob = null; send("done", code); });
+    child.on("error", (err) => { jcodeJob = null; send("done", String(err.message)); });
+    return true;
+  });
+
+  ipcMain.handle("jcode-cancel", () => { if (jcodeJob) jcodeJob.kill("SIGTERM"); return true; });
+
   ipcMain.handle("agent-list-apps", () => {
     fs.mkdirSync(APPS, { recursive: true });
     return fs.readdirSync(APPS, { withFileTypes: true })

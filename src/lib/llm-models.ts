@@ -56,7 +56,7 @@ export const LLM_MODELS: LlmModel[] = [
     params: "3B",
     kind: "coder",
     sizeMB: 1950,
-    minRamGB: 10,
+    minRamGB: 8,
     requiresWebGPU: true,
     blurb:
       "The quality jump for coding work: multi-file reasoning and longer explanations. ~2GB download, WebGPU only.",

@@ -20,5 +20,15 @@ contextBridge.exposeInMainWorld("desktop", {
     deleteApp: (slug) => ipcRenderer.invoke("agent-delete-app", slug),
     preview: (slug) => ipcRenderer.invoke("agent-preview", slug),
     reveal: (slug) => ipcRenderer.invoke("agent-reveal", slug),
+    jcode: {
+      status: () => ipcRenderer.invoke("jcode-status"),
+      run: (slug, message) => ipcRenderer.invoke("jcode-run", { slug, message }),
+      cancel: () => ipcRenderer.invoke("jcode-cancel"),
+      onEvent: (cb) => {
+        const h = (_e, ev) => cb(ev);
+        ipcRenderer.on("jcode-event", h);
+        return () => ipcRenderer.removeListener("jcode-event", h);
+      },
+    },
   },
 });
