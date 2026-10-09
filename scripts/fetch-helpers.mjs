@@ -114,7 +114,36 @@ async function getFfmpeg() {
   console.log("ffmpeg ready");
 }
 
+// Jcode coding-agent harness — macOS only for now (Mac-first rollout).
+const JCODE = {
+  "darwin-arm64": "jcode-macos-aarch64",
+  "darwin-x64": "jcode-macos-x86_64",
+};
+
+async function getJcode() {
+  const asset = JCODE[`${platform}-${arch}`];
+  if (!asset) return console.log(`jcode skipped for ${platform}-${arch}`);
+  const target = path.join(BIN, "jcode");
+  if (await exists(target)) return console.log("jcode already present");
+  const staging = path.join(BIN, ".jcode-tmp");
+  await rm(staging, { recursive: true, force: true });
+  await mkdir(staging, { recursive: true });
+  const archive = path.join(staging, "jcode.tar.gz");
+  console.log(`Downloading jcode (${asset})…`);
+  await download(
+    `https://github.com/1jehuang/jcode/releases/latest/download/${asset}.tar.gz`,
+    archive,
+  );
+  if (spawnSync("tar", ["xzf", archive, "-C", staging], { stdio: "inherit" }).status !== 0)
+    throw new Error("Could not unpack jcode");
+  await rename(path.join(staging, asset), target);
+  await chmod(target, 0o755);
+  await rm(staging, { recursive: true, force: true });
+  console.log("jcode ready");
+}
+
 await mkdir(BIN, { recursive: true });
 await getYtDlp();
 await getFfmpeg();
+await getJcode();
 console.log(`Helpers ready in ${BIN}`);
