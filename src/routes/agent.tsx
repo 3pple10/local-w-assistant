@@ -37,7 +37,31 @@ interface AgentBridge {
   deleteApp(slug: string): Promise<boolean>;
   preview(slug: string): Promise<string>;
   reveal(slug: string): Promise<string>;
+  jcode?: {
+    status(): Promise<{ available: boolean; version?: string }>;
+    run(slug: string, message: string): Promise<boolean>;
+    cancel(): Promise<boolean>;
+    onEvent(cb: (ev: { type: "out" | "err" | "done"; data: string | number }) => void): () => void;
+  };
 }
+
+/** Turns a Jcode NDJSON line into a short readable step, or null to hide it. */
+function jcodeLine(raw: string): string | null {
+  try {
+    const j = JSON.parse(raw) as Record<string, unknown>;
+    const t = String(j.type ?? j.event ?? "");
+    const tool = (j.tool ?? j.name) as string | undefined;
+    if (tool) return `${tool}${j.path ? ` ${String(j.path)}` : ""}`;
+    if (typeof j.text === "string" && j.text.trim()) return j.text.trim().slice(0, 300);
+    if (typeof j.message === "string") return j.message.slice(0, 300);
+    return t && !/delta|token/i.test(t) ? t : null;
+  } catch {
+    return raw.slice(0, 300);
+  }
+}
+
+const slugify = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "app";
 
 const label = "font-mono text-[11px] uppercase tracking-[0.16em] text-muted-foreground";
 const card = "rounded-md bg-card p-5";
@@ -119,6 +143,49 @@ function Workspace({ agent }: { agent: AgentBridge }) {
   const ready =
     source === "builtin" ? llm.status === "ready" : source === "runner" ? !!(cfg.baseURL.startsWith("http://127.0.0.1") && cfg.model) : !!(cfg.baseURL && cfg.model);
 
+  const [jcode, setJcode] = useState<{ available: boolean; version?: string } | null>(null);
+  const [harness, setHarness] = useState<"chain" | "jcode">("chain");
+  useEffect(() => {
+    if (!agent.jcode) return setJcode({ available: false });
+    void agent.jcode.status().then(setJcode).catch(() => setJcode({ available: false }));
+  }, [agent]);
+  const useJcode = harness === "jcode" && source === "runner" && !!jcode?.available;
+
+  const runJcode = async () => {
+    if (!agent.jcode) return;
+    const slug = editing?.slug ?? (() => {
+      const base = slugify(request.split(/\s+/).slice(0, 5).join(" "));
+      return apps.some((a) => a.slug === base) ? `${base}-${Date.now().toString(36).slice(-4)}` : base;
+    })();
+    setBusy(true);
+    setError(null);
+    setDrafts([]);
+    setSaved(null);
+    setSteps([`Jcode working in Workbench Apps/${slug}`]);
+    const brief = `${request.trim()}\n\nBuild a small offline web app in this folder using only index.html, style.css and app.js (plain HTML/CSS/JS, no internet links). For saved data use the global window.db (get/set/all, async) by adding <script src="db.js"></script> before app.js.`;
+    const off = agent.jcode.onEvent((ev) => {
+      if (ev.type === "done") {
+        off();
+        setBusy(false);
+        if (ev.data === 0) {
+          setSteps((x) => [...x, "Finished"]);
+          setSaved(slug);
+          void refreshApps();
+        } else setError(`Jcode stopped (${String(ev.data)}). Check that your runner model is loaded.`);
+        return;
+      }
+      const line = jcodeLine(String(ev.data));
+      if (line) setSteps((x) => [...x.slice(-80), ev.type === "err" ? `! ${line}` : line]);
+    });
+    try {
+      await agent.jcode.run(slug, brief);
+    } catch (e) {
+      off();
+      setBusy(false);
+      setError(errText(e));
+    }
+  };
+
   const call: CallModel = async (role, messages) => {
     if (source === "builtin") return llm.generate(messages, { maxNewTokens: 2048, temperature: 0.2 });
     return agent.llm(messages, role);
@@ -126,6 +193,7 @@ function Workspace({ agent }: { agent: AgentBridge }) {
 
   const run = async () => {
     if (!request.trim() || busy || !ready) return;
+    if (useJcode) return runJcode();
     setBusy(true);
     setError(null);
     setDrafts([]);
@@ -184,10 +252,31 @@ function Workspace({ agent }: { agent: AgentBridge }) {
             className="mt-3 w-full resize-y rounded-md bg-background p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
             style={{ border: "1px solid var(--border-subtle)" }}
           />
-          <Button className="mt-3 w-full" size="lg" disabled={!request.trim() || busy || !ready} onClick={() => void run()}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
-            {busy ? "Working…" : !ready ? "Set up a model first" : editing ? "Plan the change" : "Build it"}
-          </Button>
+          {jcode?.available && source === "runner" && (
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-md p-1" style={{ border: "1px solid var(--border-subtle)" }}>
+              {([["chain", "Plan → write → check"], ["jcode", "Jcode agent"]] as const).map(([k, t]) => (
+                <button key={k} disabled={busy} onClick={() => setHarness(k)} className={cn("rounded-sm py-1.5 font-mono text-[11px] uppercase", harness === k ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          {useJcode && (
+            <p className="mt-2 text-[12px] text-muted-foreground">
+              Jcode edits files straight into the app's folder (no Apply/Skip step) and can't run terminal commands. Best with a 7B+ model.
+            </p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <Button className="flex-1" size="lg" disabled={!request.trim() || busy || !ready} onClick={() => void run()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+              {busy ? "Working…" : !ready ? "Set up a model first" : useJcode ? "Build with Jcode" : editing ? "Plan the change" : "Build it"}
+            </Button>
+            {busy && useJcode && (
+              <Button size="lg" variant="outline" onClick={() => void agent.jcode?.cancel()}>
+                <X className="h-4 w-4" /> Stop
+              </Button>
+            )}
+          </div>
           {error && <p className="mt-3 text-sm text-radar-critical">{error}</p>}
           {steps.length > 0 && (
             <ol className="mt-4 space-y-1 rounded-md bg-primary p-3 font-mono text-[12px] text-primary-foreground">
