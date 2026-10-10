@@ -252,10 +252,31 @@ function Workspace({ agent }: { agent: AgentBridge }) {
             className="mt-3 w-full resize-y rounded-md bg-background p-3 text-sm outline-none focus:ring-1 focus:ring-ring"
             style={{ border: "1px solid var(--border-subtle)" }}
           />
-          <Button className="mt-3 w-full" size="lg" disabled={!request.trim() || busy || !ready} onClick={() => void run()}>
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
-            {busy ? "Working…" : !ready ? "Set up a model first" : editing ? "Plan the change" : "Build it"}
-          </Button>
+          {jcode?.available && source === "runner" && (
+            <div className="mt-3 grid grid-cols-2 gap-1 rounded-md p-1" style={{ border: "1px solid var(--border-subtle)" }}>
+              {([["chain", "Plan → write → check"], ["jcode", "Jcode agent"]] as const).map(([k, t]) => (
+                <button key={k} disabled={busy} onClick={() => setHarness(k)} className={cn("rounded-sm py-1.5 font-mono text-[11px] uppercase", harness === k ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                  {t}
+                </button>
+              ))}
+            </div>
+          )}
+          {useJcode && (
+            <p className="mt-2 text-[12px] text-muted-foreground">
+              Jcode edits files straight into the app's folder (no Apply/Skip step) and can't run terminal commands. Best with a 7B+ model.
+            </p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <Button className="flex-1" size="lg" disabled={!request.trim() || busy || !ready} onClick={() => void run()}>
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+              {busy ? "Working…" : !ready ? "Set up a model first" : useJcode ? "Build with Jcode" : editing ? "Plan the change" : "Build it"}
+            </Button>
+            {busy && useJcode && (
+              <Button size="lg" variant="outline" onClick={() => void agent.jcode?.cancel()}>
+                <X className="h-4 w-4" /> Stop
+              </Button>
+            )}
+          </div>
           {error && <p className="mt-3 text-sm text-radar-critical">{error}</p>}
           {steps.length > 0 && (
             <ol className="mt-4 space-y-1 rounded-md bg-primary p-3 font-mono text-[12px] text-primary-foreground">
